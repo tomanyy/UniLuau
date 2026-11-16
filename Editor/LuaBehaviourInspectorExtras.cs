@@ -5,7 +5,6 @@ using System.Text.RegularExpressions;
 using MoonSharp.Interpreter;
 using UnityEditor;
 using UnityEngine;
-
 [InitializeOnLoad]
 public static class LuaBehaviourInspectorExtras
 {
@@ -15,11 +14,9 @@ public static class LuaBehaviourInspectorExtras
         public string Error;
         public readonly List<string> MissingModules = new List<string>();
     }
-
     static readonly Dictionary<EntityId, Validation> validationCache = new Dictionary<EntityId, Validation>();
     static readonly Regex requires = new Regex(@"\brequire\s*\(?\s*['""]([^'""]+)['""]\s*\)?", RegexOptions.Compiled);
     static bool previewExpanded;
-
     static LuaBehaviourInspectorExtras()
     {
         Editor.finishedDefaultHeaderGUI += DrawInspectorHeader;
@@ -28,7 +25,6 @@ public static class LuaBehaviourInspectorExtras
         EditorApplication.projectChanged += validationCache.Clear;
         SceneView.duringSceneGui += OnSceneGUI;
     }
-
     static void DrawInspectorHeader(Editor editor)
     {
         var behaviour = editor.target as LuaBehaviour;
@@ -37,7 +33,6 @@ public static class LuaBehaviourInspectorExtras
             DrawBehaviourTools(behaviour);
             return;
         }
-
         if (!(editor.target is Transform) || EditorUtility.IsPersistent(editor.target)) return;
         var evt = Event.current;
         if (evt == null) return;
@@ -52,7 +47,6 @@ public static class LuaBehaviourInspectorExtras
             }
         });
     }
-
     static void DrawBehaviourTools(LuaBehaviour behaviour)
     {
         EditorGUILayout.BeginHorizontal();
@@ -64,7 +58,6 @@ public static class LuaBehaviourInspectorExtras
             behaviour.enabled = enabled;
             EditorUtility.SetDirty(behaviour);
         }
-
         string status = !behaviour.enabled ? "Disabled"
             : behaviour.script == null ? "Missing script"
             : EditorApplication.isPlaying ? behaviour.RuntimeStatus : "Ready";
@@ -72,13 +65,11 @@ public static class LuaBehaviourInspectorExtras
         if (behaviour.script != null && GUILayout.Button("Open", EditorStyles.miniButton, GUILayout.Width(48f)))
             AssetDatabase.OpenAsset(behaviour.script);
         EditorGUILayout.EndHorizontal();
-
         if (behaviour.script == null)
         {
             EditorGUILayout.HelpBox("Assign a .lua or .luau script asset.", MessageType.Warning);
             return;
         }
-
         Validation result = Validate(behaviour.script);
         if (!string.IsNullOrEmpty(result.Error))
             EditorGUILayout.HelpBox("Lua validation error: " + result.Error, MessageType.Error);
@@ -86,7 +77,6 @@ public static class LuaBehaviourInspectorExtras
             EditorGUILayout.HelpBox("Module not found in Assets/Resources/Lua: " + module, MessageType.Warning);
         if (!string.IsNullOrEmpty(behaviour.LastError) && EditorApplication.isPlaying)
             EditorGUILayout.HelpBox(behaviour.LastError, MessageType.Error);
-
         previewExpanded = EditorGUILayout.Foldout(previewExpanded, "Script Source Preview", true);
         if (previewExpanded)
         {
@@ -95,13 +85,11 @@ public static class LuaBehaviourInspectorExtras
             EditorGUI.EndDisabledGroup();
         }
     }
-
     static Validation Validate(TextAsset asset)
     {
         EntityId id = asset.GetEntityId();
         Validation cached;
         if (validationCache.TryGetValue(id, out cached) && cached.Source == asset.text) return cached;
-
         var result = new Validation { Source = asset.text };
         try
         {
@@ -112,7 +100,6 @@ public static class LuaBehaviourInspectorExtras
         {
             result.Error = e.Message;
         }
-
         var seen = new HashSet<string>();
         foreach (Match match in requires.Matches(asset.text))
         {
@@ -122,13 +109,11 @@ public static class LuaBehaviourInspectorExtras
         validationCache[id] = result;
         return result;
     }
-
     static bool ModuleExists(string module)
     {
         string root = Path.Combine(Application.dataPath, "Resources", "Lua", module.Replace('/', Path.DirectorySeparatorChar));
         return File.Exists(root + ".lua") || File.Exists(root + ".luau");
     }
-
     static void OnHierarchyItemGUI(EntityId entityId, Rect row)
     {
         HandleManyOnly(Event.current, row, scripts =>
@@ -137,7 +122,6 @@ public static class LuaBehaviourInspectorExtras
             if (target != null) AddScripts(target, scripts);
         });
     }
-
     static void OnProjectItemGUI(string guid, Rect row)
     {
         HandleManyOnly(Event.current, row, scripts =>
@@ -153,7 +137,6 @@ public static class LuaBehaviourInspectorExtras
             finally { PrefabUtility.UnloadPrefabContents(root); }
         });
     }
-
     static void OnSceneGUI(SceneView view)
     {
         var evt = Event.current;
@@ -179,7 +162,6 @@ public static class LuaBehaviourInspectorExtras
             evt.Use();
         }
     }
-
     static void HandleManyOnly(Event evt, Rect area, Action<TextAsset[]> perform)
     {
         if (evt == null || !area.Contains(evt.mousePosition)) return;
@@ -197,7 +179,6 @@ public static class LuaBehaviourInspectorExtras
             evt.Use();
         }
     }
-
     static void HandleDrop(Event evt, Rect area, Action<TextAsset[]> perform)
     {
         if (!area.Contains(evt.mousePosition)) return;
@@ -215,7 +196,6 @@ public static class LuaBehaviourInspectorExtras
             evt.Use();
         }
     }
-
     static TextAsset[] GetDraggedScripts()
     {
         var found = new List<TextAsset>();
@@ -228,7 +208,6 @@ public static class LuaBehaviourInspectorExtras
         }
         return found.ToArray();
     }
-
     public static void AddScripts(GameObject target, TextAsset[] scripts, bool recordUndo = true)
     {
         if (target == null) return;
@@ -242,22 +221,17 @@ public static class LuaBehaviourInspectorExtras
         }
     }
 }
-
 [InitializeOnLoad]
 public static class LuaScriptMultiCreateMenu
 {
     static LuaScriptMultiCreateMenu()
     {
-                                                                            
-                                                                            
     }
-
     [MenuItem("Assets/Add Selected Lua Scripts to New GameObject", true)]
     static bool ValidateCreate()
     {
         return SelectedScripts().Length > 0;
     }
-
     [MenuItem("Assets/Add Selected Lua Scripts to New GameObject", false, 2001)]
     static void Create()
     {
@@ -268,7 +242,6 @@ public static class LuaScriptMultiCreateMenu
         LuaBehaviourInspectorExtras.AddScripts(go, scripts);
         Selection.activeGameObject = go;
     }
-
     static TextAsset[] SelectedScripts()
     {
         var found = new List<TextAsset>();

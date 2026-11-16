@@ -1,5 +1,4 @@
 using UnityEditor;
-
 public static class LuaMenuItems
 {
     [MenuItem("Assets/Create/Scripting/Lua Script", false, 81)]
@@ -7,7 +6,6 @@ public static class LuaMenuItems
     {
         ProjectWindowUtil.CreateScriptAssetFromTemplateFile("Packages/com.tomany.uniluau/Editor/LuaTemplate.txt", "NewLuaScript.lua");
     }
-
     [MenuItem("Assets/Create/Scripting/Lua Module Script", false, 82)]
     public static void CreateLuauScript()
     {

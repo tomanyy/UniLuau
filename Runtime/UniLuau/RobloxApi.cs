@@ -9,83 +9,57 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using MoonSharp.Interpreter;
 using MoonSharp.Interpreter.Serialization.Json;
-
-                                                               
-                                                                
-                                                               
-                                                                
-                                       
-                                                               
-
-                                    
-
 [MoonSharpUserData]
 public class Vec2
 {
     public float X, Y;
     public Vec2(float x, float y) { X = x; Y = y; }
     public Vec2(Vector2 v) : this(v.x, v.y) { }
-
     [MoonSharpHidden] public Vector2 ToUnity() { return new Vector2(X, Y); }
-
     public float Magnitude { get { return ToUnity().magnitude; } }
     public Vec2 Unit { get { return new Vec2(ToUnity().normalized); } }
     public float Dot(Vec2 o) { return Vector2.Dot(ToUnity(), o.ToUnity()); }
     public Vec2 Lerp(Vec2 o, float t) { return new Vec2(Vector2.Lerp(ToUnity(), o.ToUnity(), t)); }
-
     public static Vec2 operator +(Vec2 a, Vec2 b) { return new Vec2(a.X + b.X, a.Y + b.Y); }
     public static Vec2 operator -(Vec2 a, Vec2 b) { return new Vec2(a.X - b.X, a.Y - b.Y); }
     public static Vec2 operator -(Vec2 a) { return new Vec2(-a.X, -a.Y); }
     public static Vec2 operator *(Vec2 a, float s) { return new Vec2(a.X * s, a.Y * s); }
     public static Vec2 operator *(float s, Vec2 a) { return new Vec2(a.X * s, a.Y * s); }
     public static Vec2 operator /(Vec2 a, float s) { return new Vec2(a.X / s, a.Y / s); }
-
     public override string ToString() { return X + ", " + Y; }
 }
-
 [MoonSharpUserData]
 public class Vec3
 {
     public float X, Y, Z;
     public Vec3(float x, float y, float z) { X = x; Y = y; Z = z; }
     public Vec3(Vector3 v) : this(v.x, v.y, v.z) { }
-
     [MoonSharpHidden] public Vector3 ToUnity() { return new Vector3(X, Y, Z); }
-
     public float Magnitude { get { return ToUnity().magnitude; } }
     public Vec3 Unit { get { return new Vec3(ToUnity().normalized); } }
     public float Dot(Vec3 o) { return Vector3.Dot(ToUnity(), o.ToUnity()); }
     public Vec3 Cross(Vec3 o) { return new Vec3(Vector3.Cross(ToUnity(), o.ToUnity())); }
     public Vec3 Lerp(Vec3 o, float t) { return new Vec3(Vector3.Lerp(ToUnity(), o.ToUnity(), t)); }
-
-                                         
     public float Angle(Vec3 o) { return Vector3.Angle(ToUnity(), o.ToUnity()) * Mathf.Deg2Rad; }
-
     public static Vec3 operator +(Vec3 a, Vec3 b) { return new Vec3(a.X + b.X, a.Y + b.Y, a.Z + b.Z); }
     public static Vec3 operator -(Vec3 a, Vec3 b) { return new Vec3(a.X - b.X, a.Y - b.Y, a.Z - b.Z); }
     public static Vec3 operator -(Vec3 a) { return new Vec3(-a.X, -a.Y, -a.Z); }
     public static Vec3 operator *(Vec3 a, float s) { return new Vec3(a.X * s, a.Y * s, a.Z * s); }
     public static Vec3 operator *(float s, Vec3 a) { return new Vec3(a.X * s, a.Y * s, a.Z * s); }
     public static Vec3 operator /(Vec3 a, float s) { return new Vec3(a.X / s, a.Y / s, a.Z / s); }
-
     public override string ToString() { return X + ", " + Y + ", " + Z; }
 }
-
 [MoonSharpUserData]
 public class Color3
 {
     public float R, G, B;
     public Color3(float r, float g, float b) { R = r; G = g; B = b; }
     [MoonSharpHidden] public Color ToUnity() { return new Color(R, G, B); }
-
     public Color3 Lerp(Color3 o, float t)
     {
         return new Color3(R + (o.R - R) * t, G + (o.G - G) * t, B + (o.B - B) * t);
     }
-
     public string ToHex() { return "#" + ColorUtility.ToHtmlStringRGB(ToUnity()); }
-
-                                                          
     public DynValue ToHSV()
     {
         float h, s, v;
@@ -93,8 +67,6 @@ public class Color3
         return DynValue.NewTuple(
             DynValue.NewNumber(h), DynValue.NewNumber(s), DynValue.NewNumber(v));
     }
-
-                                                    
     [MoonSharpHidden]
     public static Color3 FromHex(string hex)
     {
@@ -103,7 +75,6 @@ public class Color3
         if (hex.Length == 3)
             hex = new string(new[] { hex[0], hex[0], hex[1], hex[1], hex[2], hex[2] });
         if (hex.Length != 6) return new Color3(0, 0, 0);
-
         int r, g, b;
         if (!int.TryParse(hex.Substring(0, 2), System.Globalization.NumberStyles.HexNumber, null, out r) ||
             !int.TryParse(hex.Substring(2, 2), System.Globalization.NumberStyles.HexNumber, null, out g) ||
@@ -111,42 +82,33 @@ public class Color3
             return new Color3(0, 0, 0);
         return new Color3(r / 255f, g / 255f, b / 255f);
     }
-
     public override string ToString() { return R + ", " + G + ", " + B; }
 }
-
 [MoonSharpUserData]
 public class LuaCFrame
 {
     [MoonSharpHidden] public readonly Vector3 Pos;
     [MoonSharpHidden] public readonly Quaternion Rot;
-
     [MoonSharpHidden] public LuaCFrame(Vector3 pos, Quaternion rot) { Pos = pos; Rot = rot; }
-
     [MoonSharpHidden]
     public static LuaCFrame LookAt(Vector3 from, Vector3 to)
     {
         Vector3 d = to - from;
         return new LuaCFrame(from, d.sqrMagnitude > 1e-8f ? Quaternion.LookRotation(d) : Quaternion.identity);
     }
-
     public Vec3 Position    { get { return new Vec3(Pos); } }
     public Vec3 LookVector  { get { return new Vec3(Rot * Vector3.forward); } }
     public Vec3 RightVector { get { return new Vec3(Rot * Vector3.right); } }
     public Vec3 UpVector    { get { return new Vec3(Rot * Vector3.up); } }
-
     public LuaCFrame Inverse()
     {
         Quaternion inv = Quaternion.Inverse(Rot);
         return new LuaCFrame(inv * -Pos, inv);
     }
-
     public LuaCFrame Lerp(LuaCFrame o, float t)
     {
         return new LuaCFrame(Vector3.Lerp(Pos, o.Pos, t), Quaternion.Slerp(Rot, o.Rot, t));
     }
-
-                                                                    
     public DynValue ToEulerAnglesXYZ()
     {
         Vector3 e = Rot.eulerAngles;
@@ -155,25 +117,20 @@ public class LuaCFrame
             DynValue.NewNumber(NormalizeRadians(e.y)),
             DynValue.NewNumber(NormalizeRadians(e.z)));
     }
-
     static double NormalizeRadians(float degrees)
     {
         return (Mathf.Repeat(degrees + 180f, 360f) - 180f) * Mathf.Deg2Rad;
     }
-
     public LuaCFrame ToWorldSpace(LuaCFrame o)  { return this * o; }
     public LuaCFrame ToObjectSpace(LuaCFrame o) { return Inverse() * o; }
     public Vec3 PointToWorldSpace(Vec3 v)  { return new Vec3(Pos + Rot * v.ToUnity()); }
     public Vec3 PointToObjectSpace(Vec3 v) { return new Vec3(Quaternion.Inverse(Rot) * (v.ToUnity() - Pos)); }
-
     public static LuaCFrame operator *(LuaCFrame a, LuaCFrame b) { return new LuaCFrame(a.Pos + a.Rot * b.Pos, a.Rot * b.Rot); }
     public static Vec3 operator *(LuaCFrame a, Vec3 v)           { return new Vec3(a.Pos + a.Rot * v.ToUnity()); }
     public static LuaCFrame operator +(LuaCFrame a, Vec3 v)      { return new LuaCFrame(a.Pos + v.ToUnity(), a.Rot); }
     public static LuaCFrame operator -(LuaCFrame a, Vec3 v)      { return new LuaCFrame(a.Pos - v.ToUnity(), a.Rot); }
-
     public override string ToString() { return Pos.x + ", " + Pos.y + ", " + Pos.z; }
 }
-
 [MoonSharpUserData]
 public class LuaRay
 {
@@ -184,35 +141,27 @@ public class LuaRay
         Direction = new Vec3(direction.normalized);
     }
 }
-
 [MoonSharpUserData]
 public class LuaRandom
 {
     readonly System.Random rng;
     [MoonSharpHidden] public LuaRandom() { rng = new System.Random(); }
     [MoonSharpHidden] public LuaRandom(int seed) { rng = new System.Random(seed); }
-
     public double NextNumber() { return rng.NextDouble(); }
     public double NextNumber(double min, double max) { return min + (max - min) * rng.NextDouble(); }
     public int NextInteger(int min, int max) { return rng.Next(min, max + 1); }                          
 }
-
-                               
-
 [MoonSharpUserData]
 public class TaskHandle
 {
     [MoonSharpHidden] public bool Cancelled;
 }
-
-                                             
 [MoonSharpUserData]
 public class SignalWaitToken
 {
     [MoonSharpHidden] public readonly Signal Signal;
     [MoonSharpHidden] public SignalWaitToken(Signal s) { Signal = s; }
 }
-
 [MoonSharpUserData]
 public class Connection
 {
@@ -221,26 +170,20 @@ public class Connection
     [MoonSharpHidden] public readonly DynValue Fn;
     [MoonSharpHidden] public readonly object Owner;
     [MoonSharpHidden] public bool Once;
-
     [MoonSharpHidden]
     public Connection(Signal s, DynValue fn, object owner) { signal = s; Fn = fn; Owner = owner; }
-
     public bool Connected { get { return connected; } }
     public void Disconnect() { signal.Remove(this); }
     [MoonSharpHidden] public void MarkDisconnected() { connected = false; }
 }
-
 [MoonSharpUserData]
 public class Signal
 {
     readonly Scheduler scheduler;
     readonly List<Connection> connections = new List<Connection>();
     readonly List<Action<object[]>> waiters = new List<Action<object[]>>();
-
     [MoonSharpHidden] public event Action<object[]> Raised;
-
     [MoonSharpHidden] public Signal(Scheduler s) { scheduler = s; }
-
     public Connection Connect(DynValue fn)
     {
         var c = new Connection(this, fn, scheduler.CurrentOwner);
@@ -248,23 +191,18 @@ public class Signal
         scheduler.Register(c);
         return c;
     }
-
     public Connection Once(DynValue fn)
     {
         var c = Connect(fn);
         c.Once = true;
         return c;
     }
-
-                                                                   
     public DynValue Wait()
     {
         var token = DynValue.FromObject(LuaWorld.Instance.Lua, new SignalWaitToken(this));
         return DynValue.NewYieldReq(new[] { token });
     }
-
     [MoonSharpHidden] public void AddWaiter(Action<object[]> w) { waiters.Add(w); }
-
     [MoonSharpHidden]
     public void Remove(Connection c)
     {
@@ -272,31 +210,24 @@ public class Signal
         c.MarkDisconnected();
         scheduler.Unregister(c);
     }
-
     [MoonSharpHidden]
     public void Fire(params object[] args)
     {
-                                                                              
         foreach (var c in connections.ToArray())
         {
             if (c.Once) Remove(c);
             scheduler.SpawnOwned(c.Owner, c.Fn, args);
         }
-
         if (waiters.Count > 0)
         {
             var ws = waiters.ToArray();
             waiters.Clear();
             foreach (var w in ws) w(args);
         }
-
         var raised = Raised;
         if (raised != null) raised(args);
     }
 }
-
-                                                                                 
-
 public class Scheduler
 {
     class Job
@@ -308,27 +239,17 @@ public class Scheduler
         public object Owner;
         public TaskHandle Handle;
     }
-
     readonly Script script;
     readonly List<Job> jobs = new List<Job>();
     readonly List<Connection> allConnections = new List<Connection>();
     readonly HashSet<object> deadOwners = new HashSet<object>();
     readonly Dictionary<object, List<Action>> cleanups = new Dictionary<object, List<Action>>();
     float now;
-
-                                                                                          
-                                                                                       
     public object CurrentOwner;
-
     public Scheduler(Script s) { script = s; }
-
     bool IsDead(object owner) { return owner != null && deadOwners.Contains(owner); }
-
-                            
-
     public void Register(Connection c) { allConnections.Add(c); }
     public void Unregister(Connection c) { allConnections.Remove(c); }
-
     public void TrackCleanup(Action a)
     {
         if (CurrentOwner == null) return;
@@ -336,21 +257,17 @@ public class Scheduler
         if (!cleanups.TryGetValue(CurrentOwner, out list)) { list = new List<Action>(); cleanups[CurrentOwner] = list; }
         list.Add(a);
     }
-
     public void TrackObject(GameObject go)
     {
         TrackCleanup(() => { if (go != null) UnityEngine.Object.Destroy(go); });
     }
-
     public void KillOwner(object owner)
     {
         if (owner == null) return;
         deadOwners.Add(owner);
         jobs.RemoveAll(j => j.Owner == owner);
-
         foreach (var c in allConnections.ToArray())
             if (c.Owner == owner) c.Disconnect();
-
         List<Action> list;
         if (cleanups.TryGetValue(owner, out list))
         {
@@ -358,14 +275,10 @@ public class Scheduler
             foreach (var a in list) a();
         }
     }
-
-                           
-
     public TaskHandle Spawn(DynValue fn, params object[] args)
     {
         return SpawnOwned(CurrentOwner, fn, args);
     }
-
     public TaskHandle SpawnOwned(object owner, DynValue fn, params object[] args)
     {
         var handle = new TaskHandle();
@@ -382,25 +295,20 @@ public class Scheduler
         }
         return handle;
     }
-
     public TaskHandle Delay(float seconds, DynValue fn, params object[] args)
     {
         var handle = new TaskHandle();
         jobs.Add(new Job { DelayedFn = fn, Args = args, WakeAt = now + seconds, Owner = CurrentOwner, Handle = handle });
         return handle;
     }
-
-                                                          
     public void DelayCall(float seconds, Action callback)
     {
         jobs.Add(new Job { Callback = callback, WakeAt = now + seconds });
     }
-
     void Resume(Job job, DynValue[] args)
     {
         if (job.Handle != null && job.Handle.Cancelled) return;
         if (IsDead(job.Owner)) return;
-
         object previous = CurrentOwner;
         CurrentOwner = job.Owner;
         try
@@ -409,10 +317,8 @@ public class Scheduler
             if (job.Co.Coroutine.State == CoroutineState.Suspended)
             {
                 if (result.Type == DataType.Tuple && result.Tuple.Length > 0) result = result.Tuple[0];
-
                 SignalWaitToken token = null;
                 if (result.Type == DataType.UserData) token = result.UserData.Object as SignalWaitToken;
-
                 if (token != null)
                 {
                     token.Signal.AddWaiter(a =>
@@ -439,7 +345,6 @@ public class Scheduler
             CurrentOwner = previous;
         }
     }
-
     public void Tick(float dt)
     {
         now += dt;
@@ -449,23 +354,18 @@ public class Scheduler
             jobs.Remove(j);
             if (j.Handle != null && j.Handle.Cancelled) continue;
             if (IsDead(j.Owner)) continue;
-
             if (j.Callback != null) j.Callback();
             else if (j.Co == null) SpawnOwned(j.Owner, j.DelayedFn, j.Args ?? new object[0]);
             else Resume(j, new DynValue[0]);
         }
     }
 }
-
-                                    
-
 [MoonSharpUserData]
 public class LuaInstance
 {
     static readonly Dictionary<GameObject, LuaInstance> cache = new Dictionary<GameObject, LuaInstance>();
     static readonly HashSet<GameObject> uiMaterialInstances = new HashSet<GameObject>();
     static GameObject prefabHolder;
-
     [MoonSharpHidden] public readonly GameObject Go;
     string className = "GameObject";
     object lastParent;
@@ -475,11 +375,7 @@ public class LuaInstance
     readonly Dictionary<string, Signal> changedSignals = new Dictionary<string, Signal>();
     readonly Dictionary<string, Signal> attributeSignals = new Dictionary<string, Signal>();
     readonly Dictionary<string, object> attributes = new Dictionary<string, object>();
-
     LuaInstance(GameObject go) { Go = go; }
-
-                           
-
     [MoonSharpHidden]
     public static LuaInstance Wrap(GameObject go)
     {
@@ -488,7 +384,6 @@ public class LuaInstance
         if (!cache.TryGetValue(go, out inst)) { inst = new LuaInstance(go); cache[go] = inst; }
         return inst;
     }
-
     [MoonSharpHidden]
     public static LuaInstance WrapAs(GameObject go, string instanceClassName)
     {
@@ -497,20 +392,16 @@ public class LuaInstance
             inst.className = instanceClassName;
         return inst;
     }
-
     [MoonSharpHidden]
     public static void ClearMaterialCache() { uiMaterialInstances.Clear(); }
-
     [MoonSharpHidden]
     public static LuaInstance FromPrefab(GameObject prefab)
     {
         return FromPrefab(prefab, prefab != null ? prefab.name : "GameObject");
     }
-
     [MoonSharpHidden]
     public static LuaInstance FromPrefab(GameObject prefab, string instanceClassName)
     {
-                                                                                                       
         if (prefabHolder == null)
         {
             prefabHolder = new GameObject("[LuaPrefabHolder]");
@@ -526,9 +417,7 @@ public class LuaInstance
         inst.className = string.IsNullOrEmpty(instanceClassName) ? "GameObject" : instanceClassName;
         return inst;
     }
-
     static Signal NewSignal() { return new Signal(LuaWorld.Instance.Scheduler); }
-
     static void NotifyAdded(object parent, LuaInstance child)
     {
         var pi = parent as LuaInstance;
@@ -536,7 +425,6 @@ public class LuaInstance
         var scene = parent as LuaScene;
         if (scene != null) scene.ChildAdded.Fire(child);
     }
-
     static void NotifyRemoved(object parent, LuaInstance child)
     {
         var pi = parent as LuaInstance;
@@ -544,26 +432,15 @@ public class LuaInstance
         var scene = parent as LuaScene;
         if (scene != null) scene.ChildRemoved.Fire(child);
     }
-
     [MoonSharpHidden] public void RaiseChildAdded(LuaInstance c)   { if (childAdded != null) childAdded.Fire(c); }
     [MoonSharpHidden] public void RaiseChildRemoved(LuaInstance c) { if (childRemoved != null) childRemoved.Fire(c); }
-
-                                   
-
     public string Name
     {
         get { return Go.name; }
         set { Go.name = value ?? ""; RaiseChanged("Name"); }
     }
-
     public string ClassName { get { return className; } }
-
     public LuaTransform Transform { get { return new LuaTransform(this); } }
-
-                                            
-
-                                                                              
-                                                                  
     public bool Visible
     {
         get { return Go != null && Go.activeSelf; }
@@ -581,9 +458,7 @@ public class LuaInstance
             RaiseChanged("Active");
         }
     }
-
     public bool Active { get { return Visible; } set { Visible = value; } }
-
     public string Tag
     {
         get { return Go != null ? Go.tag : "Untagged"; }
@@ -599,7 +474,6 @@ public class LuaInstance
             RaiseChanged("Tag");
         }
     }
-
     public int Layer
     {
         get { return Go != null ? Go.layer : 0; }
@@ -611,7 +485,6 @@ public class LuaInstance
             RaiseChanged("Layer");
         }
     }
-
     public string LayerName
     {
         get { return LayerMask.LayerToName(Go != null ? Go.layer : 0); }
@@ -637,10 +510,6 @@ public class LuaInstance
             RaiseChanged("Layer");
         }
     }
-
-                                                                               
-                                                                            
-                                                                  
     public LuaMaterial Material
     {
         get
@@ -648,12 +517,8 @@ public class LuaInstance
             if (Go == null) return null;
             var renderer = Go.GetComponent<Renderer>();
             if (renderer != null) return new LuaMaterial(renderer.material);
-
             var graphic = Go.GetComponent<Graphic>();
             if (graphic == null) return null;
-
-                                                                             
-                                                                            
             if (graphic.material != null && !uiMaterialInstances.Contains(Go))
             {
                 graphic.material = new Material(graphic.material);
@@ -674,18 +539,11 @@ public class LuaInstance
             }
         }
     }
-
     public Color3 Color
     {
         get { var m = Material; return m != null ? m.Color : new Color3(1, 1, 1); }
         set { var m = Material; if (m != null) m.Color = value; }
     }
-
-                                   
-
-                                                                            
-                                                                              
-                                                                             
     [MoonSharpHidden]
     public bool TryGetUnityComponent(string label, out object value)
     {
@@ -697,25 +555,18 @@ public class LuaInstance
             : new LuaUnityComponent(this, namedComponent);
         return true;
     }
-
-                                                                                
-                                                      
     public LuaUnityComponent AddComponent(string className)
     {
         if (Go == null) throw new ScriptRuntimeException("GameObject has been destroyed.");
-
         Type type = LuaUnityTypes.ResolveComponent(className);
         if (type == null)
             throw new ScriptRuntimeException(
                 "Unity component not found: " + className + ". Use a component type name " +
                 "(for example 'Rigidbody') or an AddComponentMenu label.");
-
         if (type == typeof(Transform))
             throw new ScriptRuntimeException("A GameObject already has a Transform.");
-
         if (type == typeof(RectTransform) && Go.transform is RectTransform)
             return new LuaUnityComponent(this, Go.transform);
-
         Component component;
         try { component = Go.AddComponent(type); }
         catch (Exception e)
@@ -723,30 +574,23 @@ public class LuaInstance
             throw new ScriptRuntimeException(
                 "Cannot add Unity component '" + className + "' (" + type.FullName + "): " + e.Message);
         }
-
         if (component == null)
             throw new ScriptRuntimeException(
                 "Unity did not add component '" + className + "' (" + type.FullName + ").");
-
         RaiseChanged("Components");
         return new LuaUnityComponent(this, component);
     }
-
     public LuaUnityComponent GetComponent(string className)
     {
         if (Go == null) return null;
-
         Component component;
         if (TryFindUnityComponent(className, out component) && component != null)
             return new LuaUnityComponent(this, component);
-
         Type type = LuaUnityTypes.ResolveComponent(className);
         if (type == null) return null;
-
         component = Go.GetComponent(type);
         return component != null ? new LuaUnityComponent(this, component) : null;
     }
-
     [MoonSharpHidden]
     public bool TryGetUnityObjectProperty(object target, string label, out object value)
     {
@@ -767,13 +611,11 @@ public class LuaInstance
         else value = raw;
         return true;
     }
-
     [MoonSharpHidden]
     public bool TrySetUnityComponentProperty(Component component, string label, DynValue value, out string error)
     {
         return TrySetUnityObjectProperty((object)component, label, value, out error);
     }
-
     [MoonSharpHidden]
     public bool TrySetUnityObjectProperty(object target, string label, DynValue value, out string error)
     {
@@ -798,7 +640,6 @@ public class LuaInstance
             return false;
         }
     }
-
     static bool TryFindUnityObjectMember(object candidate, string label, out object found, out PropertyInfo property, out FieldInfo field)
     {
         found = null; property = null; field = null;
@@ -818,7 +659,6 @@ public class LuaInstance
         }
         return false;
     }
-
     bool TryFindUnityComponent(string label, out Component result)
     {
         result = null;
@@ -848,8 +688,6 @@ public class LuaInstance
             if (wanted == "renderer" && candidate is Renderer) { result = candidate; return true; }
             if (wanted == "collider" && candidate is Collider) { result = candidate; return true; }
         }
-
-                                                                           
         Type resolved = LuaUnityTypes.ResolveComponent(label);
         if (resolved != null && typeof(Component).IsAssignableFrom(resolved))
         {
@@ -858,7 +696,6 @@ public class LuaInstance
         }
         return false;
     }
-
     static string NormalizeUnityMemberName(string name)
     {
         var chars = new List<char>();
@@ -866,12 +703,10 @@ public class LuaInstance
             if (char.IsLetterOrDigit(c)) chars.Add(char.ToLowerInvariant(c));
         return new string(chars.ToArray());
     }
-
     static Type FindType(string fullName)
     {
         return LuaUnityTypes.FindType(fullName);
     }
-
     static object ConvertUnityValue(DynValue value, Type targetType)
     {
         Type nullable = Nullable.GetUnderlyingType(targetType);
@@ -881,7 +716,6 @@ public class LuaInstance
             if (!targetType.IsValueType || Nullable.GetUnderlyingType(targetType) != null) return null;
             throw new InvalidCastException("nil cannot be assigned to " + targetType.Name);
         }
-
         object raw = value.ToObject();
         var unityObject = raw as LuaUnityComponent;
         if (unityObject != null) raw = unityObject.UnityObject;
@@ -902,17 +736,13 @@ public class LuaInstance
         if (targetType.IsInstanceOfType(raw)) return raw;
         return Convert.ChangeType(raw, targetType, CultureInfo.InvariantCulture);
     }
-
     public object Parent
     {
         get
         {
             if (Go == null) return null;
-
             if (Go.transform.parent != null)
             {
-                                                                             
-                                                            
                 if (hasCachedParent && lastParent is LuaGuiObject)
                 {
                     var guiParent = (LuaGuiObject)lastParent;
@@ -920,18 +750,12 @@ public class LuaInstance
                         guiParent.ContentRoot == Go.transform.parent)
                         return lastParent;
                 }
-
                 object parent = Wrap(Go.transform.parent.gameObject);
                 lastParent = parent;
                 hasCachedParent = parent != null;
                 return parent;
             }
-
-                                                                            
-                                                               
             if (!Go.activeSelf) return hasCachedParent ? lastParent : null;
-
-                                                             
             Scene scene = Go.scene;
             object sceneParent = scene.IsValid() && scene.isLoaded ? LuaScene.Get(scene.name) : null;
             lastParent = sceneParent;
@@ -942,7 +766,6 @@ public class LuaInstance
         {
             object oldParent = Parent;
             bool applied = true;
-
             if (value is LuaInstance)
             {
                 var parentInstance = (LuaInstance)value;
@@ -973,12 +796,9 @@ public class LuaInstance
             {
                 applied = false;
             }
-
             if (!applied) return;
-
             lastParent = value;
             hasCachedParent = value != null;
-
             object newParent = Parent;
             if (!ReferenceEquals(oldParent, newParent))
             {
@@ -987,16 +807,12 @@ public class LuaInstance
             }
         }
     }
-
-                         
-
     LuaTouchRelay Relay()
     {
         var r = Go.GetComponent<LuaTouchRelay>();
         if (r == null) r = Go.AddComponent<LuaTouchRelay>();
         return r;
     }
-
     public Signal Touched
     {
         get
@@ -1005,7 +821,6 @@ public class LuaInstance
             return touched;
         }
     }
-
     public Signal TouchEnded
     {
         get
@@ -1014,12 +829,10 @@ public class LuaInstance
             return touchEnded;
         }
     }
-
     public Signal ChildAdded   { get { if (childAdded == null)   childAdded   = NewSignal(); return childAdded; } }
     public Signal ChildRemoved { get { if (childRemoved == null) childRemoved = NewSignal(); return childRemoved; } }
     public Signal Destroying   { get { if (destroying == null)   destroying   = NewSignal(); return destroying; } }
     public Signal Changed      { get { if (changed == null)      changed      = NewSignal(); return changed; } }
-
     public Signal GetPropertyChangedSignal(string property)
     {
         Signal s;
@@ -1030,7 +843,6 @@ public class LuaInstance
         }
         return s;
     }
-
     [MoonSharpHidden]
     void RaiseChanged(string property)
     {
@@ -1038,12 +850,8 @@ public class LuaInstance
         Signal s;
         if (changedSignals.TryGetValue(property, out s)) s.Fire();
     }
-
     [MoonSharpHidden]
     public void NotifyUnityPropertyChanged(string property) { RaiseChanged(property); }
-
-                          
-
     public void Destroy()
     {
         if (Go == null) return;
@@ -1054,13 +862,11 @@ public class LuaInstance
         uiMaterialInstances.Remove(Go);
         UnityEngine.Object.Destroy(Go);
     }
-
     public void ClearAllChildren()
     {
         foreach (Transform t in Go.transform)
             Wrap(t.gameObject).Destroy();
     }
-
     public LuaInstance Clone()
     {
         var copy = UnityEngine.Object.Instantiate(Go);
@@ -1070,13 +876,11 @@ public class LuaInstance
         inst.className = className;
         return inst;
     }
-
     public LuaInstance FindFirstChild(string name)
     {
         var t = Go.transform.Find(name);
         return t != null ? Wrap(t.gameObject) : null;
     }
-
     public LuaInstance FindFirstChild(string name, bool recursive)
     {
         if (!recursive) return FindFirstChild(name);
@@ -1084,7 +888,6 @@ public class LuaInstance
             if (t != Go.transform && t.name == name) return Wrap(t.gameObject);
         return null;
     }
-
     public LuaInstance FindFirstChildOfClass(string cls)
     {
         foreach (Transform t in Go.transform)
@@ -1093,9 +896,7 @@ public class LuaInstance
         }
         return null;
     }
-
     public LuaInstance FindFirstChildWhichIsA(string cls) { return FindFirstChildWhichIsA(cls, false); }
-
     public LuaInstance FindFirstChildWhichIsA(string cls, bool recursive)
     {
         foreach (Transform t in Go.transform)
@@ -1112,7 +913,6 @@ public class LuaInstance
         }
         return null;
     }
-
     public LuaInstance FindFirstAncestor(string ancestorName)
     {
         var t = Go.transform.parent;
@@ -1123,7 +923,6 @@ public class LuaInstance
         }
         return null;
     }
-
     public LuaInstance FindFirstAncestorOfClass(string cls)
     {
         var t = Go.transform.parent;
@@ -1134,7 +933,6 @@ public class LuaInstance
         }
         return null;
     }
-
     public LuaInstance FindFirstAncestorWhichIsA(string cls)
     {
         var t = Go.transform.parent;
@@ -1146,7 +944,6 @@ public class LuaInstance
         }
         return null;
     }
-
     public string GetFullName()
     {
         var names = new List<string>();
@@ -1159,16 +956,13 @@ public class LuaInstance
         }
         return string.Join(".", names);
     }
-
     public LuaInstance WaitForChild(string name) { return FindFirstChild(name); }
-
     public Table GetChildren()
     {
         var list = new List<LuaInstance>();
         foreach (Transform t in Go.transform) list.Add(Wrap(t.gameObject));
         return LuaWorld.ToTable(list);
     }
-
     public Table GetDescendants()
     {
         var list = new List<LuaInstance>();
@@ -1176,38 +970,31 @@ public class LuaInstance
             if (t != Go.transform) list.Add(Wrap(t.gameObject));
         return LuaWorld.ToTable(list);
     }
-
     public bool IsDescendantOf(LuaInstance other)
     {
         return other != null && Go.transform != other.Go.transform && Go.transform.IsChildOf(other.Go.transform);
     }
-
     public void SetAttribute(string name, DynValue value)
     {
         object next = value.ToObject();
         object old;
         bool had = attributes.TryGetValue(name, out old);
         attributes[name] = next;
-
         if (had && Equals(old, next)) return;
-
         Signal s;
         if (attributeSignals.TryGetValue(name, out s)) s.Fire();
     }
-
     public object GetAttribute(string name)
     {
         object v;
         return attributes.TryGetValue(name, out v) ? v : null;
     }
-
     public Table GetAttributes()
     {
         var t = new Table(LuaWorld.Instance.Lua);
         foreach (var pair in attributes) t[pair.Key] = pair.Value;
         return t;
     }
-
     public Signal GetAttributeChangedSignal(string name)
     {
         Signal s;
@@ -1218,16 +1005,13 @@ public class LuaInstance
         }
         return s;
     }
-
     public void LookAt(Vec3 target) { Go.transform.LookAt(target.ToUnity()); }
-
     public bool IsA(string cls)
     {
         if (string.Equals(className, cls, StringComparison.OrdinalIgnoreCase)) return true;
         if (cls == "GameObject") return true;
         return HasComponent(Go, cls);
     }
-
     static bool HasComponent(GameObject go, string cls)
     {
         if (go == null || string.IsNullOrEmpty(cls)) return false;
@@ -1241,50 +1025,38 @@ public class LuaInstance
             if (wanted == NormalizeUnityMemberName(typeName) || wanted == NormalizeUnityMemberName(shortName))
                 return true;
         }
-
         Type resolved = LuaUnityTypes.ResolveComponent(cls);
         return resolved != null && go.GetComponent(resolved) != null;
     }
 }
-
-                                                                    
 [MoonSharpUserData]
 public class LuaTransform
 {
     readonly LuaInstance owner;
-
     [MoonSharpHidden]
     public LuaTransform(LuaInstance instance) { owner = instance; }
-
     Transform Target { get { return owner != null && owner.Go != null ? owner.Go.transform : null; } }
-
     public Vec3 Position
     {
         get { return Target != null ? new Vec3(Target.position) : new Vec3(0, 0, 0); }
         set { if (Target != null && value != null) { Target.position = value.ToUnity(); owner.NotifyUnityPropertyChanged("Transform.Position"); } }
     }
-
     public Vec3 LocalPosition
     {
         get { return Target != null ? new Vec3(Target.localPosition) : new Vec3(0, 0, 0); }
         set { if (Target != null && value != null) { Target.localPosition = value.ToUnity(); owner.NotifyUnityPropertyChanged("Transform.LocalPosition"); } }
     }
-
-                                                     
     public Vec3 Scale
     {
         get { return Target != null ? new Vec3(Target.localScale) : new Vec3(1, 1, 1); }
         set { if (Target != null && value != null) { Target.localScale = value.ToUnity(); owner.NotifyUnityPropertyChanged("Transform.Scale"); } }
     }
-
     public Vec3 LocalScale { get { return Scale; } set { Scale = value; } }
-
     public Vec3 LossyScale { get { return Target != null ? new Vec3(Target.lossyScale) : Scale; } }
     public Vec3 Forward { get { return Target != null ? new Vec3(Target.forward) : new Vec3(0, 0, 1); } }
     public Vec3 Right { get { return Target != null ? new Vec3(Target.right) : new Vec3(1, 0, 0); } }
     public Vec3 Up { get { return Target != null ? new Vec3(Target.up) : new Vec3(0, 1, 0); } }
     public int ChildCount { get { return Target != null ? Target.childCount : 0; } }
-
     public LuaInstance Parent
     {
         get { return Target != null && Target.parent != null ? LuaInstance.Wrap(Target.parent.gameObject) : null; }
@@ -1295,126 +1067,96 @@ public class LuaTransform
             owner.NotifyUnityPropertyChanged("Transform.Parent");
         }
     }
-
     public LuaInstance Find(string childName)
     {
         if (Target == null) return null;
         Transform child = Target.Find(childName);
         return child != null ? LuaInstance.Wrap(child.gameObject) : null;
     }
-
-                                                                              
     public LuaInstance GetChild(int index)
     {
         if (Target == null || index < 1 || index > Target.childCount) return null;
         return LuaInstance.Wrap(Target.GetChild(index - 1).gameObject);
     }
-
     [MoonSharpHidden]
     public Transform UnityTransform { get { return Target; } }
-
     public Vec3 Rotation
     {
         get { return Target != null ? new Vec3(Target.eulerAngles) : new Vec3(0, 0, 0); }
         set { if (Target != null && value != null) { Target.eulerAngles = value.ToUnity(); owner.NotifyUnityPropertyChanged("Transform.Rotation"); } }
     }
-
     public Vec3 LocalRotation
     {
         get { return Target != null ? new Vec3(Target.localEulerAngles) : new Vec3(0, 0, 0); }
         set { if (Target != null && value != null) { Target.localEulerAngles = value.ToUnity(); owner.NotifyUnityPropertyChanged("Transform.LocalRotation"); } }
     }
 }
-
-                                                                                
 [MoonSharpUserData]
 public class LuaUnityComponent
 {
     readonly LuaInstance owner;
     readonly object component;
-
     [MoonSharpHidden]
     public LuaUnityComponent(LuaInstance instance, object value) { owner = instance; component = value; }
-
     public string ClassName { get { return component != null ? component.GetType().Name : "DestroyedComponent"; } }
-
     [MoonSharpHidden]
     public object UnityObject { get { return component; } }
-
     [MoonSharpHidden]
     public bool TryGetProperty(string label, out object value)
     {
         if (owner == null) { value = null; return false; }
         return owner.TryGetUnityObjectProperty(component, label, out value);
     }
-
     [MoonSharpHidden]
     public bool TrySetProperty(string label, DynValue value, out string error)
     {
         if (owner == null) { error = null; return false; }
         return owner.TrySetUnityObjectProperty(component, label, value, out error);
     }
-
     [MoonSharpHidden]
     public LuaUnityComponentSection GetSection(string name)
     {
         return new LuaUnityComponentSection(this, name);
     }
 }
-
-                                                                             
-                                                                        
-                                                                              
-                                                                               
 [MoonSharpUserData]
 public class LuaUnityComponentSection
 {
     readonly LuaUnityComponent component;
-
     [MoonSharpHidden]
     public LuaUnityComponentSection(LuaUnityComponent component, string name)
     {
         this.component = component;
         Name = name ?? "";
     }
-
     public string Name { get; private set; }
-
     public string ClassName { get { return component != null ? component.ClassName : "DestroyedComponent"; } }
-
     [MoonSharpHidden]
     public object UnityObject { get { return component != null ? component.UnityObject : null; } }
-
     [MoonSharpHidden]
     public bool TryGetProperty(string label, out object value)
     {
         if (component == null) { value = null; return false; }
         return component.TryGetProperty(label, out value);
     }
-
     [MoonSharpHidden]
     public bool TrySetProperty(string label, DynValue value, out string error)
     {
         if (component == null) { error = null; return false; }
         return component.TrySetProperty(label, value, out error);
     }
-
     [MoonSharpHidden]
     public LuaUnityComponentSection GetSection(string name)
     {
         return new LuaUnityComponentSection(component, name);
     }
 }
-
-                                              
-
 [MoonSharpUserData]
 public class LuaRayResult
 {
     public LuaInstance Instance;
     public Vec3 Position, Normal;
     public float Distance;
-
     [MoonSharpHidden]
     public LuaRayResult(RaycastHit h)
     {
@@ -1424,16 +1166,11 @@ public class LuaRayResult
         Distance = h.distance;
     }
 }
-
-                                     
-                                                       
-                                                  
 [MoonSharpUserData]
 public class LuaRaycastParams
 {
     public string FilterType = "Exclude";
     public Table FilterDescendantsInstances;
-
     [MoonSharpHidden]
     public bool Allows(GameObject go)
     {
@@ -1449,18 +1186,12 @@ public class LuaRaycastParams
         return FilterType == "Include" ? inList : !inList;
     }
 }
-
-                                                                        
-                                                                          
 [MoonSharpUserData]
 public class LuaScene
 {
     static readonly Dictionary<string, LuaScene> cache = new Dictionary<string, LuaScene>(StringComparer.Ordinal);
-
     readonly string sceneName;
-
     public Signal ChildAdded, ChildRemoved;
-
     [MoonSharpHidden]
     public LuaScene(string name)
     {
@@ -1468,9 +1199,6 @@ public class LuaScene
         ChildAdded = new Signal(LuaWorld.Instance.Scheduler);
         ChildRemoved = new Signal(LuaWorld.Instance.Scheduler);
     }
-
-                                                                            
-                                                                          
     [MoonSharpHidden]
     public static LuaScene Get(string name)
     {
@@ -1483,12 +1211,9 @@ public class LuaScene
         }
         return scene;
     }
-
     [MoonSharpHidden]
     public static void ClearCache() { cache.Clear(); }
-
     public string Name { get { return sceneName; } }
-
     [MoonSharpHidden]
     public Scene UnityScene
     {
@@ -1498,7 +1223,6 @@ public class LuaScene
             return scene.IsValid() && scene.isLoaded ? scene : default(Scene);
         }
     }
-
     public LuaInstance CurrentCamera
     {
         get
@@ -1516,20 +1240,16 @@ public class LuaScene
                     }
                 }
             }
-
             Camera main = Camera.main;
             if (main != null) return LuaInstance.Wrap(main.gameObject);
             return fallback != null ? LuaInstance.Wrap(fallback.gameObject) : null;
         }
     }
-
-                                                                                
     public float Gravity
     {
         get { return -Physics.gravity.y; }
         set { Physics.gravity = new Vector3(0, -value, 0); }
     }
-
     public LuaInstance FindChild(string name)
     {
         Scene scene = UnityScene;
@@ -1542,9 +1262,7 @@ public class LuaScene
         }
         return null;
     }
-
     public LuaInstance FindFirstChild(string name) { return FindChild(name); }
-
     public LuaInstance FindFirstChild(string name, bool recursive)
     {
         Scene scene = UnityScene;
@@ -1558,7 +1276,6 @@ public class LuaScene
         }
         return null;
     }
-
     public LuaInstance FindFirstChildOfClass(string cls)
     {
         Scene scene = UnityScene;
@@ -1568,9 +1285,7 @@ public class LuaScene
                 if (LuaInstance.Wrap(t.gameObject).IsA(cls)) return LuaInstance.Wrap(t.gameObject);
         return null;
     }
-
     public LuaInstance WaitForChild(string name) { return FindFirstChild(name); }
-
     public Table GetChildren()
     {
         var list = new List<LuaInstance>();
@@ -1580,7 +1295,6 @@ public class LuaScene
                 list.Add(LuaInstance.Wrap(root));
         return LuaWorld.ToTable(list);
     }
-
     public Table GetDescendants()
     {
         var list = new List<LuaInstance>();
@@ -1591,25 +1305,19 @@ public class LuaScene
                     list.Add(LuaInstance.Wrap(t.gameObject));
         return LuaWorld.ToTable(list);
     }
-
-                                                  
     public LuaRayResult Raycast(Vec3 origin, Vec3 direction)
     {
         return Raycast(origin, direction, null);
     }
-
     public LuaRayResult Raycast(Vec3 origin, Vec3 direction, LuaRaycastParams p)
     {
         Vector3 d = direction.ToUnity();
         return Closest(Physics.RaycastAll(origin.ToUnity(), d.normalized, d.magnitude), p);
     }
-
-                                                      
     public LuaRayResult RaycastFromMouse(float maxDistance)
     {
         return RaycastFromMouse(maxDistance, null);
     }
-
     public LuaRayResult RaycastFromMouse(float maxDistance, LuaRaycastParams p)
     {
         var cam = Camera.main;
@@ -1618,17 +1326,14 @@ public class LuaScene
         Ray ray = cam.ScreenPointToRay(m.position.ReadValue());
         return Closest(Physics.RaycastAll(ray, maxDistance > 0 ? maxDistance : 1000f), p);
     }
-
     public Table GetPartBoundsInRadius(Vec3 position, float radius)
     {
         return ToInstances(Physics.OverlapSphere(position.ToUnity(), radius));
     }
-
     public Table GetPartBoundsInBox(LuaCFrame cframe, Vec3 size)
     {
         return ToInstances(Physics.OverlapBox(cframe.Pos, size.ToUnity() * 0.5f, cframe.Rot));
     }
-
     static LuaRayResult Closest(RaycastHit[] hits, LuaRaycastParams p)
     {
         Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
@@ -1636,7 +1341,6 @@ public class LuaScene
             if (p == null || p.Allows(h.collider.gameObject)) return new LuaRayResult(h);
         return null;
     }
-
     static Table ToInstances(Collider[] cols)
     {
         var seen = new HashSet<GameObject>();
@@ -1646,9 +1350,6 @@ public class LuaScene
         return LuaWorld.ToTable(list);
     }
 }
-
-                              
-
 [MoonSharpUserData]
 public class LuaInput
 {
@@ -1656,15 +1357,11 @@ public class LuaInput
     public string UserInputType;
     [MoonSharpHidden] public LuaInput(string key, string type) { KeyCode = key; UserInputType = type; }
 }
-
-                                            
 [MoonSharpUserData]
 public class LuaMouse
 {
-                                     
     public float X { get { var m = Mouse.current; return m == null ? 0f : m.position.ReadValue().x; } }
     public float Y { get { var m = Mouse.current; return m == null ? 0f : Screen.height - m.position.ReadValue().y; } }
-
     bool Cast(out RaycastHit hit)
     {
         hit = new RaycastHit();
@@ -1673,14 +1370,10 @@ public class LuaMouse
         if (cam == null || m == null) return false;
         return Physics.Raycast(cam.ScreenPointToRay(m.position.ReadValue()), out hit, 1000f);
     }
-
-                                           
     public LuaInstance Target
     {
         get { RaycastHit h; return Cast(out h) ? LuaInstance.Wrap(h.collider.gameObject) : null; }
     }
-
-                                                                                         
     public LuaCFrame Hit
     {
         get
@@ -1694,12 +1387,10 @@ public class LuaMouse
         }
     }
 }
-
 [MoonSharpUserData]
 public class LuaRunService
 {
     public Signal Stepped, RenderStepped, Heartbeat;
-
     [MoonSharpHidden]
     public LuaRunService(Signal stepped, Signal renderStepped, Signal heartbeat)
     {
@@ -1708,20 +1399,17 @@ public class LuaRunService
         Heartbeat = heartbeat;
     }
 }
-
 [MoonSharpUserData]
 public class LuaUserInputService
 {
     public Signal InputBegan, InputEnded, TouchStarted, TouchEnded, TouchMoved;
     readonly LuaMouse mouse = new LuaMouse();
-
     [MoonSharpHidden]
     public static readonly string[] PadButtonNames =
     {
         "ButtonA", "ButtonB", "ButtonX", "ButtonY", "ButtonL1", "ButtonR1", "ButtonL2", "ButtonR2",
         "ButtonL3", "ButtonR3", "ButtonStart", "ButtonSelect", "DPadUp", "DPadDown", "DPadLeft", "DPadRight"
     };
-
     [MoonSharpHidden]
     public static ButtonControl PadButton(Gamepad g, string name)
     {
@@ -1746,7 +1434,6 @@ public class LuaUserInputService
         }
         return null;
     }
-
     [MoonSharpHidden]
     public LuaUserInputService(Signal began, Signal ended, Signal touchStarted, Signal touchEnded, Signal touchMoved)
     {
@@ -1756,8 +1443,6 @@ public class LuaUserInputService
         TouchEnded = touchEnded;
         TouchMoved = touchMoved;
     }
-
-                                                                                       
     public bool IsKeyDown(string key)
     {
         if (key.StartsWith("Button") || key.StartsWith("DPad"))
@@ -1770,16 +1455,13 @@ public class LuaUserInputService
         Key k;
         return kb != null && Enum.TryParse(key, out k) && k != Key.None && kb[k].isPressed;
     }
-
     public bool IsMouseButtonPressed(string type)
     {
         var m = Mouse.current;
         if (m == null) return false;
         return type == "MouseButton1" ? m.leftButton.isPressed : (type == "MouseButton2" && m.rightButton.isPressed);
     }
-
     public LuaMouse GetMouse() { return mouse; }
-
     public Vec3 GetMouseDelta()
     {
         var m = Mouse.current;
@@ -1787,15 +1469,11 @@ public class LuaUserInputService
         Vector2 d = m.delta.ReadValue();
         return new Vec3(d.x, d.y, 0);
     }
-
-                                
     public float GetMouseWheel()
     {
         var m = Mouse.current;
         return m == null ? 0f : Math.Sign(m.scroll.ReadValue().y);
     }
-
-                                                             
     public Vec2 GetMouseLocation()
     {
         var m = Mouse.current;
@@ -1803,8 +1481,6 @@ public class LuaUserInputService
         Vector2 p = m.position.ReadValue();
         return new Vec2(p.x, Screen.height - p.y);
     }
-
-                                                                                      
     public string MouseBehavior
     {
         get { return Cursor.lockState == CursorLockMode.Locked ? "LockCenter" : "Default"; }
@@ -1815,20 +1491,13 @@ public class LuaUserInputService
             Cursor.visible = !locked;
         }
     }
-
-                          
-
     public bool GamepadConnected { get { return Gamepad.current != null; } }
-
-                                                              
     public Vec2 GetGamepadThumbstick(string name)
     {
         var pad = Gamepad.current;
         if (pad == null) return new Vec2(0, 0);
         return new Vec2(name == "Thumbstick2" ? pad.rightStick.ReadValue() : pad.leftStick.ReadValue());
     }
-
-                                       
     public float GetGamepadTrigger(string name)
     {
         var pad = Gamepad.current;
@@ -1836,24 +1505,16 @@ public class LuaUserInputService
         var b = PadButton(pad, name);
         return b != null ? b.ReadValue() : 0f;
     }
-
-                        
-
     public bool TouchEnabled { get { return Touchscreen.current != null; } }
 }
-
-                                                                     
-
 [MoonSharpUserData]
 public class LuaScriptRef
 {
     public LuaInstance Parent;
     public string Name;
     public Signal AttributeChanged;
-
     readonly Dictionary<string, object> attributes = new Dictionary<string, object>();
     readonly Dictionary<string, Signal> changedSignals = new Dictionary<string, Signal>();
-
     [MoonSharpHidden]
     public LuaScriptRef(LuaInstance parent, string name)
     {
@@ -1861,22 +1522,18 @@ public class LuaScriptRef
         Name = name;
         AttributeChanged = new Signal(LuaWorld.Instance.Scheduler);
     }
-
     public object GetAttribute(string name)
     {
         object v;
         return attributes.TryGetValue(name, out v) ? v : null;
     }
-
     public void SetAttribute(string name, DynValue value) { Apply(name, value.ToObject()); }
-
     public Table GetAttributes()
     {
         var t = new Table(LuaWorld.Instance.Lua);
         foreach (var pair in attributes) t[pair.Key] = pair.Value;
         return t;
     }
-
     public Signal GetAttributeChangedSignal(string name)
     {
         Signal s;
@@ -1887,10 +1544,7 @@ public class LuaScriptRef
         }
         return s;
     }
-
-                                                   
     [MoonSharpHidden] public void Load(string name, object value) { attributes[name] = value; }
-
     [MoonSharpHidden]
     public void Apply(string name, object value)
     {
@@ -1898,21 +1552,15 @@ public class LuaScriptRef
         bool had = attributes.TryGetValue(name, out old);
         attributes[name] = value;
         if (had && Equals(old, value)) return;
-
         Signal s;
         if (changedSignals.TryGetValue(name, out s)) s.Fire();
         AttributeChanged.Fire(name);
     }
 }
-
-                                       
-
 [MoonSharpUserData]
 public class LuaDebris
 {
-                                                  
     public void AddItem(LuaInstance item) { AddItem(item, 10f); }
-
     public void AddItem(LuaInstance item, float seconds)
     {
         if (item == null) return;
@@ -1922,14 +1570,12 @@ public class LuaDebris
         });
     }
 }
-
 [MoonSharpUserData]
 public class LuaBindableEvent
 {
     public Signal Event;
     readonly GameObject go;
     object parent;
-
     [MoonSharpHidden]
     public LuaBindableEvent(Scheduler s)
     {
@@ -1937,33 +1583,27 @@ public class LuaBindableEvent
         go = LuaPrefabObjects.Create("BindableEvent");
         s.TrackCleanup(Destroy);
     }
-
     public object Parent
     {
         get { return parent; }
         set { parent = value; LuaPrefabObjects.SetParent(go, value); }
     }
-
     public string Name
     {
         get { return go != null ? go.name : "BindableEvent"; }
         set { if (go != null) go.name = value ?? "BindableEvent"; }
     }
-
     public void Destroy()
     {
         parent = null;
         if (go != null) UnityEngine.Object.Destroy(go);
     }
-
     public void Fire(params object[] args) { Event.Fire(args); }
 }
-
 [MoonSharpUserData]
 public class LuaCollectionService
 {
     readonly Dictionary<string, HashSet<LuaInstance>> tags = new Dictionary<string, HashSet<LuaInstance>>();
-
     public void AddTag(LuaInstance inst, string tag)
     {
         if (inst == null) return;
@@ -1971,19 +1611,16 @@ public class LuaCollectionService
         if (!tags.TryGetValue(tag, out set)) { set = new HashSet<LuaInstance>(); tags[tag] = set; }
         set.Add(inst);
     }
-
     public void RemoveTag(LuaInstance inst, string tag)
     {
         HashSet<LuaInstance> set;
         if (tags.TryGetValue(tag, out set)) set.Remove(inst);
     }
-
     public bool HasTag(LuaInstance inst, string tag)
     {
         HashSet<LuaInstance> set;
         return tags.TryGetValue(tag, out set) && set.Contains(inst);
     }
-
     public Table GetTagged(string tag)
     {
         var list = new List<LuaInstance>();
@@ -1995,7 +1632,6 @@ public class LuaCollectionService
         }
         return LuaWorld.ToTable(list);
     }
-
     public Table GetTags(LuaInstance inst)
     {
         var t = new Table(LuaWorld.Instance.Lua);
@@ -2004,7 +1640,6 @@ public class LuaCollectionService
         return t;
     }
 }
-
 [MoonSharpUserData]
 public class LuaHttpService
 {
@@ -2012,7 +1647,6 @@ public class LuaHttpService
     public Table JSONDecode(string json) { return JsonTableConverter.JsonToTable(json, LuaWorld.Instance.Lua); }
     public string GenerateGUID() { return Guid.NewGuid().ToString(); }
 }
-
 [MoonSharpUserData]
 public class LuaGame
 {
@@ -2022,19 +1656,15 @@ public class LuaGame
     readonly LuaCollectionService collection = new LuaCollectionService();
     readonly LuaHttpService http = new LuaHttpService();
     readonly Dictionary<string, DynValue> luaServices = new Dictionary<string, DynValue>();
-
     const string WorkspaceMessage =
         "Workspace does not exist in Unity. Use game.<SceneName> (for example game.SampleScene) instead.";
-
     [MoonSharpHidden]
     public LuaGame(LuaRunService r, LuaUserInputService u) { run = r; uis = u; }
-
     [MoonSharpHidden]
     public LuaScene FindScene(string name)
     {
         if (string.Equals(name, "Workspace", StringComparison.OrdinalIgnoreCase))
             throw new ScriptRuntimeException(WorkspaceMessage);
-
         for (int i = 0; i < SceneManager.sceneCount; i++)
         {
             Scene scene = SceneManager.GetSceneAt(i);
@@ -2043,7 +1673,6 @@ public class LuaGame
         }
         return null;
     }
-
     public Table GetScenes()
     {
         var table = new Table(LuaWorld.Instance.Lua);
@@ -2054,10 +1683,8 @@ public class LuaGame
         }
         return table;
     }
-
     [MoonSharpHidden]
     public void RegisterService(string name, DynValue svc) { luaServices[name] = svc; }
-
     public object GetService(string name)
     {
         switch (name)
@@ -2075,15 +1702,11 @@ public class LuaGame
         throw new ScriptRuntimeException("Unknown service: " + name);
     }
 }
-
-                                             
-
 public class LuaWorld
 {
     static LuaWorld inst;
     public static LuaWorld Instance { get { if (inst == null) inst = new LuaWorld(); return inst; } }
     public static bool Exists { get { return inst != null; } }
-
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void Reset()
     {
@@ -2092,22 +1715,16 @@ public class LuaWorld
         LuaUnityTypes.ClearCache();
         LuaInstance.ClearMaterialCache();
     }
-
     public Script Lua;
     public Scheduler Scheduler;
     public LuaPhysicsService PhysicsService;
     public LuaContextActionService ContextActionService;
-
     Signal heartbeat, renderStepped, stepped;
     Signal inputBegan, inputEnded, touchStarted, touchEnded, touchMoved;
     readonly Dictionary<string, DynValue> moduleCache = new Dictionary<string, DynValue>();
     readonly HashSet<string> loading = new HashSet<string>();
-
-                                                              
     public void ClearModules() { moduleCache.Clear(); }
-
     static float N(CallbackArguments a, int i) { return a.Count > i ? (float)(a[i].CastToNumber() ?? 0) : 0f; }
-
     static bool SameLuaValue(DynValue a, DynValue b)
     {
         if (a == null || b == null || a.Type != b.Type) return false;
@@ -2120,7 +1737,6 @@ public class LuaWorld
             default:               return a.ReferenceID == b.ReferenceID;
         }
     }
-
     static object[] Rest(CallbackArguments a, int from)
     {
         int n = Math.Max(0, a.Count - from);
@@ -2128,32 +1744,25 @@ public class LuaWorld
         for (int i = 0; i < n; i++) r[i] = a[from + i];
         return r;
     }
-
     static Table MakeEnum(Script lua, params string[] names)
     {
         var t = new Table(lua);
         foreach (var n in names) t[n] = n;
         return t;
     }
-
     public static Table ToTable(List<LuaInstance> items)
     {
         var t = new Table(Instance.Lua);
         foreach (var i in items) t.Append(DynValue.FromObject(Instance.Lua, i));
         return t;
     }
-
     LuaWorld()
     {
-                                                                              
-                                                    
         LuaIndexing.Register();
         UserData.RegisterAssembly();
-
         Lua = new Script(CoreModules.Preset_SoftSandbox);
         Lua.Options.DebugPrint = s => Debug.Log(s);
         Scheduler = new Scheduler(Lua);
-
         heartbeat     = new Signal(Scheduler);
         renderStepped = new Signal(Scheduler);
         stepped       = new Signal(Scheduler);
@@ -2162,28 +1771,22 @@ public class LuaWorld
         touchStarted  = new Signal(Scheduler);
         touchEnded    = new Signal(Scheduler);
         touchMoved    = new Signal(Scheduler);
-
         var run  = new LuaRunService(stepped, renderStepped, heartbeat);
         var uis  = new LuaUserInputService(inputBegan, inputEnded, touchStarted, touchEnded, touchMoved);
         var game = new LuaGame(run, uis);
         PhysicsService = new LuaPhysicsService();
         ContextActionService = new LuaContextActionService(Scheduler, inputBegan, inputEnded);
-
         var g = Lua.Globals;
         g["game"] = game;
         g["warn"] = (Action<string>)(s => Debug.LogWarning(s));
-
         SetupCore(g);
         SetupTypes(g);
         SetupServices(game);
-
         var go = new GameObject("[LuaWorld]");
         UnityEngine.Object.DontDestroyOnLoad(go);
         go.AddComponent<LuaWorldDriver>().world = this;
         go.AddComponent<LuaGuiRenderer>();
     }
-
-                                              
     void SetupCore(Table g)
     {
         var math = g.Get("math").Table;
@@ -2191,10 +1794,6 @@ public class LuaWorld
         math["sign"]  = (Func<double, double>)(x => Math.Sign(x));
         math["round"] = (Func<double, double>)(x => Math.Round(x, MidpointRounding.AwayFromZero));
         math["lerp"]  = (Func<double, double, double, double>)((a, b, t) => a + (b - a) * t);
-
-                                                                               
-                                                                            
-                                                                         
         DynValue osValue = g.Get("os");
         Table os = osValue.Type == DataType.Table ? osValue.Table : new Table(Lua);
         g["os"] = os;
@@ -2238,8 +1837,6 @@ public class LuaWorld
             }
             return DynValue.NewString(FormatLuaDate(format, value));
         });
-
-                                                                                
         math["noise"] = DynValue.NewCallback((ctx, a) =>
         {
             if (a.Count == 0) return DynValue.NewNumber(0);
@@ -2260,10 +1857,7 @@ public class LuaWorld
             }
             return DynValue.NewNumber(v - 0.5f);
         });
-
-                               
         var table = g.Get("table").Table;
-
         table["find"] = DynValue.NewCallback((ctx, a) =>
         {
             if (a.Count < 2 || a[0].Type != DataType.Table) return DynValue.Nil;
@@ -2274,7 +1868,6 @@ public class LuaWorld
                 if (SameLuaValue(t.Get(i), needle)) return DynValue.NewNumber(i);
             return DynValue.Nil;
         });
-
         table["clone"] = DynValue.NewCallback((ctx, a) =>
         {
             if (a.Count == 0 || a[0].Type != DataType.Table) return DynValue.Nil;
@@ -2282,13 +1875,11 @@ public class LuaWorld
             foreach (TablePair pair in a[0].Table.Pairs) copy.Set(pair.Key, pair.Value);
             return DynValue.NewTable(copy);
         });
-
         table["clear"] = DynValue.NewCallback((ctx, a) =>
         {
             if (a.Count > 0 && a[0].Type == DataType.Table) a[0].Table.Clear();
             return DynValue.Nil;
         });
-
         table["create"] = DynValue.NewCallback((ctx, a) =>
         {
             int count = Math.Max(0, (int)N(a, 0));
@@ -2297,7 +1888,6 @@ public class LuaWorld
                 for (int i = 1; i <= count; i++) created.Set(i, a[1]);
             return DynValue.NewTable(created);
         });
-
         table["pack"] = DynValue.NewCallback((ctx, a) =>
         {
             var packed = new Table(ctx.GetScript());
@@ -2305,8 +1895,6 @@ public class LuaWorld
             packed.Set("n", DynValue.NewNumber(a.Count));
             return DynValue.NewTable(packed);
         });
-
-                               
         var stringLib = g.Get("string").Table;
         stringLib["split"] = DynValue.NewCallback((ctx, a) =>
         {
@@ -2324,8 +1912,6 @@ public class LuaWorld
             }
             return DynValue.NewTable(t);
         });
-
-                                                         
         g["typeof"] = DynValue.NewCallback((ctx, a) =>
         {
             DynValue v = a.Count > 0 ? a[0] : DynValue.Nil;
@@ -2355,12 +1941,9 @@ public class LuaWorld
             }
             return DynValue.NewString(v.Type.ToLuaTypeString());
         });
-
-                              
         var waitFn = DynValue.NewCallback((ctx, a) =>
             DynValue.NewYieldReq(new[] { DynValue.NewNumber(a.Count > 0 ? (a[0].CastToNumber() ?? 0) : 0) }));
         g["wait"] = waitFn;
-
         var task = new Table(Lua);
         task["wait"]  = waitFn;
         task["spawn"] = DynValue.NewCallback((ctx, a) => DynValue.FromObject(Lua, Scheduler.Spawn(a[0], Rest(a, 1))));
@@ -2373,8 +1956,6 @@ public class LuaWorld
             return DynValue.Nil;
         });
         g["task"] = task;
-
-                                                              
         g["require"] = DynValue.NewCallback((ctx, a) =>
         {
             string modName = a[0].CastToString();
@@ -2382,19 +1963,15 @@ public class LuaWorld
             if (moduleCache.TryGetValue(modName, out cached)) return cached;
             if (loading.Contains(modName))
                 throw new ScriptRuntimeException("Circular require: " + modName);
-
             var asset = Resources.Load<TextAsset>("Lua/" + modName);
             if (asset == null)
                 throw new ScriptRuntimeException("Module not found: Assets/Resources/Lua/" + modName + ".lua");
-
             string source = Luau.Transpile(asset.text);
             LuaErrors.Sources[modName] = source;
-
             var env = new Table(Lua);
             var meta = new Table(Lua);
             meta["__index"] = Lua.Globals;
             env.MetaTable = meta;
-
             loading.Add(modName);
             try
             {
@@ -2407,7 +1984,6 @@ public class LuaWorld
             finally { loading.Remove(modName); }
         });
     }
-
     static string FormatLuaDate(string format, DateTime value)
     {
         var result = new System.Text.StringBuilder();
@@ -2443,8 +2019,6 @@ public class LuaWorld
         }
         return result.ToString();
     }
-
-                                                                                            
     void SetupTypes(Table g)
     {
         var v2 = new Table(Lua);
@@ -2452,7 +2026,6 @@ public class LuaWorld
         v2["zero"] = new Vec2(0, 0);
         v2["one"]  = new Vec2(1, 1);
         g["Vector2"] = v2;
-
         var v3 = new Table(Lua);
         v3["new"] = DynValue.NewCallback((c, a) =>
             DynValue.FromObject(Lua, new Vec3(N(a, 0), N(a, 1), N(a, 2))));
@@ -2462,7 +2035,6 @@ public class LuaWorld
         v3["yAxis"] = new Vec3(0, 1, 0);
         v3["zAxis"] = new Vec3(0, 0, 1);
         g["Vector3"] = v3;
-
         var c3 = new Table(Lua);
         c3["new"] = DynValue.NewCallback((c, a) =>
             DynValue.FromObject(Lua, new Color3(N(a, 0), N(a, 1), N(a, 2))));
@@ -2486,7 +2058,6 @@ public class LuaWorld
             return DynValue.FromObject(Lua, new Color3(col.r, col.g, col.b));
         });
         g["Color3"] = c3;
-
         var cf = new Table(Lua);
         cf["new"] = DynValue.NewCallback((c, a) =>
         {
@@ -2524,7 +2095,6 @@ public class LuaWorld
                 Quaternion.AngleAxis(N(a, 1) * Mathf.Rad2Deg, v.sqrMagnitude > 0.0001f ? v.normalized : Vector3.up)));
         });
         g["CFrame"] = cf;
-
         var ud = new Table(Lua);
         ud["new"] = DynValue.NewCallback((c, a) =>
             DynValue.FromObject(Lua, new UDim2(N(a, 0), N(a, 1), N(a, 2), N(a, 3))));
@@ -2533,19 +2103,16 @@ public class LuaWorld
         ud["fromOffset"] = DynValue.NewCallback((c, a) =>
             DynValue.FromObject(Lua, new UDim2(0, N(a, 0), 0, N(a, 1))));
         g["UDim2"] = ud;
-
         var numberRange = new Table(Lua);
         numberRange["new"] = DynValue.NewCallback((c, a) =>
             DynValue.FromObject(Lua, a.Count >= 2
                 ? new NumberRange(N(a, 0), N(a, 1))
                 : new NumberRange(N(a, 0), N(a, 0))));
         g["NumberRange"] = numberRange;
-
         var numberKeypoint = new Table(Lua);
         numberKeypoint["new"] = DynValue.NewCallback((c, a) =>
             DynValue.FromObject(Lua, new NumberSequenceKeypoint(N(a, 0), N(a, 1), N(a, 2))));
         g["NumberSequenceKeypoint"] = numberKeypoint;
-
         var numberSequence = new Table(Lua);
         numberSequence["new"] = DynValue.NewCallback((c, a) =>
         {
@@ -2563,7 +2130,6 @@ public class LuaWorld
             return DynValue.FromObject(Lua, new NumberSequence(N(a, 0)));
         });
         g["NumberSequence"] = numberSequence;
-
         var colorKeypoint = new Table(Lua);
         colorKeypoint["new"] = DynValue.NewCallback((c, a) =>
         {
@@ -2572,7 +2138,6 @@ public class LuaWorld
                 new ColorSequenceKeypoint(N(a, 0), color ?? new Color3(1, 1, 1)));
         });
         g["ColorSequenceKeypoint"] = colorKeypoint;
-
         var colorSequence = new Table(Lua);
         colorSequence["new"] = DynValue.NewCallback((c, a) =>
         {
@@ -2596,21 +2161,17 @@ public class LuaWorld
             return DynValue.FromObject(Lua, new ColorSequence(single ?? new Color3(1, 1, 1)));
         });
         g["ColorSequence"] = colorSequence;
-
         var ray = new Table(Lua);
         ray["new"] = DynValue.NewCallback((c, a) =>
             DynValue.FromObject(Lua, new LuaRay(((Vec3)a[0].UserData.Object).ToUnity(), ((Vec3)a[1].UserData.Object).ToUnity())));
         g["Ray"] = ray;
-
         var rp = new Table(Lua);
         rp["new"] = DynValue.NewCallback((c, a) => DynValue.FromObject(Lua, new LuaRaycastParams()));
         g["RaycastParams"] = rp;
-
         var rnd = new Table(Lua);
         rnd["new"] = DynValue.NewCallback((c, a) =>
             DynValue.FromObject(Lua, a.Count > 0 ? new LuaRandom((int)(a[0].CastToNumber() ?? 0)) : new LuaRandom()));
         g["Random"] = rnd;
-
         var gameObject = new Table(Lua);
         gameObject["new"] = DynValue.NewCallback((c, a) =>
         {
@@ -2619,12 +2180,9 @@ public class LuaWorld
             return DynValue.FromObject(Lua, LuaFactory.Create(cls, parent));
         });
         g["GameObject"] = gameObject;
-
-                                                                                                       
         var keyCode = new Table(Lua);
         foreach (var keyName in Enum.GetNames(typeof(Key))) keyCode[keyName] = keyName;
         foreach (var padName in LuaUserInputService.PadButtonNames) keyCode[padName] = padName;
-
         var enumTable = new Table(Lua);
         enumTable["KeyCode"] = keyCode;
         enumTable["UserInputType"] = MakeEnum(Lua, "Keyboard", "MouseButton1", "MouseButton2", "Touch", "Gamepad1");
@@ -2633,17 +2191,13 @@ public class LuaWorld
         enumTable["ContextActionResult"] = MakeEnum(Lua, "Pass", "Sink");
         g["Enum"] = enumTable;
     }
-
-                                                                                                   
     void SetupServices(LuaGame game)
     {
-                                                                                            
         Func<string, DynValue> findPrefab = n =>
         {
             var prefab = string.IsNullOrEmpty(n) ? null : Resources.Load<GameObject>("Prefabs/" + n);
             return prefab != null ? DynValue.FromObject(Lua, new LuaPrefab(prefab)) : DynValue.Nil;
         };
-
         var findFn = DynValue.NewCallback((ctx, a) => findPrefab(a[1].CastToString()));
         var rs = new Table(Lua);
         rs["FindFirstChild"] = findFn;
@@ -2660,7 +2214,6 @@ public class LuaWorld
         rs.MetaTable = rsMeta;
         game.RegisterService("ReplicatedStorage", DynValue.NewTable(rs));
         game.RegisterService("ServerStorage", DynValue.NewTable(rs));
-
         game.RegisterService("Lighting", DynValue.FromObject(Lua, new LuaLighting()));
         game.RegisterService("SoundService", DynValue.FromObject(Lua, new LuaSoundService()));
         game.RegisterService("DataStoreService", DynValue.FromObject(Lua, new LuaDataStoreService()));
@@ -2669,11 +2222,8 @@ public class LuaWorld
         var gui = DynValue.FromObject(Lua, new LuaGuiRoot());
         game.RegisterService("CoreGui", gui);
         game.RegisterService("StarterGui", gui);
-
-                                                            
         var services = Lua.DoString(@"
         local RunService = game:GetService('RunService')
-
         local function bounceOut(a)
             local n1, d1 = 7.5625, 2.75
             if a < 1 / d1 then
@@ -2688,7 +2238,6 @@ public class LuaWorld
             a = a - 2.625 / d1
             return n1 * a * a + 0.984375
         end
-
         local easeIn = {
             Linear = function(a) return a end,
             Sine = function(a) return 1 - math.cos(a * math.pi / 2) end,
@@ -2704,7 +2253,6 @@ public class LuaWorld
             end,
             Bounce = function(a) return 1 - bounceOut(1 - a) end,
         }
-
         local function ease(style, dir, a)
             local f = easeIn[style] or easeIn.Linear
             if dir == 'In' then return f(a) end
@@ -2712,7 +2260,6 @@ public class LuaWorld
             if a < 0.5 then return f(a * 2) / 2 end
             return 1 - f((1 - a) * 2) / 2
         end
-
         local function lerp(prop, a, b, t)
             if type(a) == 'number' and type(b) == 'number' then
                 return a + (b - a) * t
@@ -2722,10 +2269,8 @@ public class LuaWorld
             end
             return b
         end
-
         Enum.EasingStyle = { Linear = 'Linear', Sine = 'Sine', Quad = 'Quad', Cubic = 'Cubic', Back = 'Back', Elastic = 'Elastic', Bounce = 'Bounce' }
         Enum.EasingDirection = { In = 'In', Out = 'Out', InOut = 'InOut' }
-
         TweenInfo = {
             new = function(time, style, direction, repeatCount, reverses, delayTime)
                 return {
@@ -2738,27 +2283,21 @@ public class LuaWorld
                 }
             end
         }
-
         local TweenService = {}
-
         function TweenService:GetValue(alpha, style, direction)
             return ease(style or 'Quad', direction or 'Out', math.clamp(alpha or 0, 0, 1))
         end
-
         function TweenService:Create(inst, info, goals)
             local tween = { PlaybackState = 'Begin' }
             local done = GameObject.new('BindableEvent')
             tween.Completed = done.Event
-
             local conn, from, to, origin
             local t, cycle, back = 0, 0, false
-
             local function current()
                 local c = {}
                 for prop in pairs(goals) do c[prop] = inst[prop] end
                 return c
             end
-
             local function finish(state)
                 if conn then
                     conn:Disconnect()
@@ -2767,7 +2306,6 @@ public class LuaWorld
                 tween.PlaybackState = state
                 done:Fire(state)
             end
-
             local function start(fromValues, toValues, startTime)
                 from = fromValues
                 to = toValues
@@ -2805,7 +2343,6 @@ public class LuaWorld
                     end
                 end)
             end
-
             function tween:Play()
                 if tween.PlaybackState == 'Playing' then return end
                 if tween.PlaybackState == 'Paused' then
@@ -2815,17 +2352,14 @@ public class LuaWorld
                 origin = current()
                 start(origin, goals, -info.DelayTime)
             end
-
             function tween:Pause()
                 if tween.PlaybackState == 'Playing' then tween.PlaybackState = 'Paused' end
             end
-
             function tween:Cancel()
                 if tween.PlaybackState == 'Playing' or tween.PlaybackState == 'Paused' then
                     finish('Cancelled')
                 end
             end
-
             function tween:Reverse()
                 local now = current()
                 if conn then
@@ -2834,27 +2368,20 @@ public class LuaWorld
                 end
                 start(now, origin or now, 0)
             end
-
             return tween
         end
-
         return { TweenService = TweenService }
         ");
         game.RegisterService("TweenService", services.Table.Get("TweenService"));
     }
-
-                                   
-
     public void Tick(float dt)
     {
         Scheduler.Tick(dt);
         PollInput();
-
         stepped.Fire(dt);
         renderStepped.Fire(dt);
         heartbeat.Fire(dt);
     }
-
     void PollInput()
     {
         var kb = Keyboard.current;
@@ -2866,7 +2393,6 @@ public class LuaWorld
                 if (key.wasReleasedThisFrame) inputEnded.Fire(new LuaInput(key.keyCode.ToString(), "Keyboard"), false);
             }
         }
-
         var mouse = Mouse.current;
         if (mouse != null)
         {
@@ -2875,7 +2401,6 @@ public class LuaWorld
             FireMouse(mouse.leftButton, "MouseButton1", overGui);
             FireMouse(mouse.rightButton, "MouseButton2", overGui);
         }
-
         var pad = Gamepad.current;
         if (pad != null)
         {
@@ -2887,7 +2412,6 @@ public class LuaWorld
                 if (b.wasReleasedThisFrame) inputEnded.Fire(new LuaInput(padName, "Gamepad1"), false);
             }
         }
-
         var ts = Touchscreen.current;
         if (ts != null)
         {
@@ -2910,8 +2434,6 @@ public class LuaWorld
             }
         }
     }
-
-                                                                   
     void FireMouse(ButtonControl b, string type, bool overGui)
     {
         if (b.wasPressedThisFrame)  inputBegan.Fire(new LuaInput("None", type), overGui);

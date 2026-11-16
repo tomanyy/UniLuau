@@ -1,14 +1,12 @@
 using System.IO;
 using UnityEditor;
 using UnityEngine;
-
 [CustomEditor(typeof(LuaBehaviour))]
 public class LuaBehaviourEditor : Editor
 {
     public override void OnInspectorGUI()
     {
         DrawDefaultInspector();
-
         var script = serializedObject.FindProperty("script");
         if (script != null && script.objectReferenceValue == null)
         {
@@ -16,7 +14,6 @@ public class LuaBehaviourEditor : Editor
         }
     }
 }
-
 [InitializeOnLoad]
 public static class LuaScriptDropHandler
 {
@@ -27,25 +24,21 @@ public static class LuaScriptDropHandler
         SceneView.duringSceneGui += OnSceneGUI;
         EditorApplication.delayCall += EnsureSpecialPrefabs;
     }
-
     static void EnsureSpecialPrefabs()
     {
         const string resourcesPath = "Assets/Resources";
         const string prefabFolder = resourcesPath + "/Prefabs";
         if (!AssetDatabase.IsValidFolder(resourcesPath)) AssetDatabase.CreateFolder("Assets", "Resources");
         if (!AssetDatabase.IsValidFolder(prefabFolder)) AssetDatabase.CreateFolder(resourcesPath, "Prefabs");
-
         string[] classes = {
             "BindableEvent", "BindableFunction", "RemoteEvent",
             "ScreenGui", "Frame", "ScrollingFrame", "TextLabel", "TextButton", "ImageLabel", "ImageButton", "TextBox"
         };
-
         bool changed = false;
         foreach (string className in classes)
         {
             string path = prefabFolder + "/" + className + ".prefab";
             if (AssetDatabase.LoadAssetAtPath<GameObject>(path) != null) continue;
-
             bool ui = className == "ScreenGui" || className == "Frame" || className == "ScrollingFrame" || className == "TextLabel" ||
                       className == "TextButton" || className == "ImageLabel" || className == "ImageButton" || className == "TextBox";
             var template = ui
@@ -55,15 +48,12 @@ public static class LuaScriptDropHandler
             Object.DestroyImmediate(template);
             changed = true;
         }
-
         if (changed) AssetDatabase.Refresh();
     }
-
     static void OnHierarchyItemGUI(EntityId entityId, Rect row)
     {
         Event evt = Event.current;
         if (evt == null || !row.Contains(evt.mousePosition) || !HasLuaScript()) return;
-
         if (evt.type == EventType.DragUpdated)
         {
             DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
@@ -74,7 +64,6 @@ public static class LuaScriptDropHandler
             var target = EditorUtility.EntityIdToObject(entityId) as GameObject;
             TextAsset script = GetDraggedScript();
             if (script == null) return;
-
             DragAndDrop.AcceptDrag();
             if (target != null)
                 AddScript(target, script);
@@ -83,15 +72,12 @@ public static class LuaScriptDropHandler
             evt.Use();
         }
     }
-
     static void OnProjectItemGUI(string guid, Rect row)
     {
         Event evt = Event.current;
         if (evt == null || !row.Contains(evt.mousePosition) || !HasLuaScript()) return;
-
         string prefabPath = AssetDatabase.GUIDToAssetPath(guid);
         if (Path.GetExtension(prefabPath) != ".prefab") return;
-
         if (evt.type == EventType.DragUpdated)
         {
             DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
@@ -105,12 +91,10 @@ public static class LuaScriptDropHandler
             evt.Use();
         }
     }
-
     static void OnSceneGUI(SceneView sceneView)
     {
         Event evt = Event.current;
         if (evt == null || !HasLuaScript()) return;
-
         if (evt.type == EventType.DragUpdated)
         {
             DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
@@ -121,7 +105,6 @@ public static class LuaScriptDropHandler
             TextAsset script = GetDraggedScript();
             if (script == null) return;
             DragAndDrop.AcceptDrag();
-
             Ray ray = HandleUtility.GUIPointToWorldRay(evt.mousePosition);
             RaycastHit hit;
             Vector3 position = Physics.Raycast(ray, out hit) ? hit.point : ray.GetPoint(10f);
@@ -133,22 +116,18 @@ public static class LuaScriptDropHandler
             evt.Use();
         }
     }
-
     [MenuItem("Assets/Add Lua Script to New GameObject", true)]
     static bool ValidateCreateObjectFromScript()
     {
         return GetSelectedScript() != null;
     }
-
     [MenuItem("Assets/Add Lua Script to New GameObject", false, 2000)]
     static void CreateObjectFromScript()
     {
         TextAsset script = GetSelectedScript();
         if (script == null) return;
-
         CreateObjectFromScript(script);
     }
-
     static void CreateObjectFromScript(TextAsset script)
     {
         if (script == null) return;
@@ -157,12 +136,10 @@ public static class LuaScriptDropHandler
         AddScript(go, script);
         Selection.activeGameObject = go;
     }
-
     static bool HasLuaScript()
     {
         return GetDraggedScript() != null;
     }
-
     static TextAsset GetDraggedScript()
     {
         if (DragAndDrop.objectReferences != null && DragAndDrop.objectReferences.Length == 1)
@@ -170,9 +147,6 @@ public static class LuaScriptDropHandler
             var script = AsLuaScript(DragAndDrop.objectReferences[0]);
             if (script != null) return script;
         }
-
-                                                                              
-                                                                             
         if (DragAndDrop.paths != null && DragAndDrop.paths.Length == 1)
         {
             string path = DragAndDrop.paths[0];
@@ -182,14 +156,12 @@ public static class LuaScriptDropHandler
         }
         return null;
     }
-
     static TextAsset GetSelectedScript()
     {
         return Selection.objects != null && Selection.objects.Length == 1
             ? AsLuaScript(Selection.objects[0])
             : null;
     }
-
     static TextAsset AsLuaScript(Object candidate)
     {
         var asset = candidate as TextAsset;
@@ -197,7 +169,6 @@ public static class LuaScriptDropHandler
         string extension = Path.GetExtension(AssetDatabase.GetAssetPath(asset)).ToLowerInvariant();
         return extension == ".lua" || extension == ".luau" ? asset : null;
     }
-
     static void AddScriptToPrefab(string prefabPath, TextAsset script)
     {
         if (script == null) return;
@@ -213,11 +184,9 @@ public static class LuaScriptDropHandler
             PrefabUtility.UnloadPrefabContents(root);
         }
     }
-
     static void AddScript(GameObject target, TextAsset script)
     {
         if (target == null || script == null) return;
-
         var behaviour = Undo.AddComponent<LuaBehaviour>(target);
         var serialized = new SerializedObject(behaviour);
         serialized.FindProperty("script").objectReferenceValue = script;

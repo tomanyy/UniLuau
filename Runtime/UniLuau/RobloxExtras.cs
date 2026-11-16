@@ -6,17 +6,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using MoonSharp.Interpreter;
 using MoonSharp.Interpreter.Serialization.Json;
-
-                                                               
-                                                            
-                                                            
-                                                               
-
-                                
-
 public static class LuaAudio
 {
-                                                                                                  
     public static AudioClip LoadClip(string id)
     {
         if (string.IsNullOrEmpty(id)) return null;
@@ -26,17 +17,11 @@ public static class LuaAudio
         return clip;
     }
 }
-
-                                                                           
-                                                                             
-                                                                                
 public static class LuaUnityTypes
 {
     static readonly Dictionary<string, Type> typeCache = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase);
     static readonly Dictionary<string, Type> componentCache = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase);
     static List<Type> componentTypes;
-
-                                                                 
     static readonly Dictionary<string, string> aliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         { "text", "UnityEngine.UI.Text" },
@@ -82,25 +67,21 @@ public static class LuaUnityTypes
         { "particlesystem", "UnityEngine.ParticleSystem" },
         { "animator", "UnityEngine.Animator" },
     };
-
     static IEnumerable<System.Reflection.Assembly> LoadedAssemblies
     {
         get { return UnityEngine.Assemblies.CurrentAssemblies.GetLoadedAssemblies(); }
     }
-
     public static void ClearCache()
     {
         typeCache.Clear();
         componentCache.Clear();
         componentTypes = null;
     }
-
     public static Type FindType(string fullName)
     {
         if (string.IsNullOrEmpty(fullName)) return null;
         Type cached;
         if (typeCache.TryGetValue(fullName, out cached)) return cached;
-
         Type found = null;
         foreach (var assembly in LoadedAssemblies)
         {
@@ -110,15 +91,11 @@ public static class LuaUnityTypes
         typeCache[fullName] = found;
         return found;
     }
-
-                                                                                
-                                                                               
     static List<Type> ComponentTypes
     {
         get
         {
             if (componentTypes != null) return componentTypes;
-
             componentTypes = new List<Type>();
             foreach (var assembly in LoadedAssemblies)
             {
@@ -126,12 +103,10 @@ public static class LuaUnityTypes
                 try { types = assembly.GetTypes(); }
                 catch (ReflectionTypeLoadException e) { types = e.Types; }
                 catch { continue; }
-
                 foreach (var type in types)
                 {
                     if (type == null || !type.IsClass || type.IsAbstract || type.IsGenericTypeDefinition) continue;
                     if (!typeof(Component).IsAssignableFrom(type)) continue;
-                                                                                          
                     if (type == typeof(Transform)) continue;
                     componentTypes.Add(type);
                 }
@@ -139,26 +114,17 @@ public static class LuaUnityTypes
             return componentTypes;
         }
     }
-
-                                                                              
-                                                                         
     public static Type ResolveComponent(string className)
     {
         if (string.IsNullOrWhiteSpace(className)) return null;
         string key = Normalize(className);
-
         Type cached;
         if (componentCache.TryGetValue(key, out cached)) return cached;
-
         Type result = null;
-
         string aliasTarget;
         if (aliases.TryGetValue(key, out aliasTarget))
         {
             result = FindType(aliasTarget);
-
-                                                                            
-                                                            
             if (result == null)
             {
                 int dot = aliasTarget.LastIndexOf('.');
@@ -173,7 +139,6 @@ public static class LuaUnityTypes
                 }
             }
         }
-
         if (result == null)
         {
             result = FindType(className);
@@ -190,8 +155,6 @@ public static class LuaUnityTypes
                 }
             }
         }
-
-                                                                                       
         if (result == null)
         {
             foreach (var type in ComponentTypes)
@@ -200,7 +163,6 @@ public static class LuaUnityTypes
                 try { menu = type.GetCustomAttribute<AddComponentMenu>(false); }
                 catch { continue; }
                 if (menu == null || string.IsNullOrEmpty(menu.componentMenu)) continue;
-
                 string menuLabel = menu.componentMenu;
                 int slash = menuLabel.LastIndexOf('/');
                 string shortLabel = slash >= 0 ? menuLabel.Substring(slash + 1) : menuLabel;
@@ -211,16 +173,11 @@ public static class LuaUnityTypes
                 }
             }
         }
-
         if (result != null && (!typeof(Component).IsAssignableFrom(result) || result.IsAbstract))
             result = null;
-
         componentCache[key] = result;
         return result;
     }
-
-                                                                                
-                                                                                 
     public static bool IsUiComponent(Type type)
     {
         if (type == null) return false;
@@ -229,7 +186,6 @@ public static class LuaUnityTypes
         if (typeof(Graphic).IsAssignableFrom(type)) return true;
         return false;
     }
-
     public static string Normalize(string name)
     {
         if (string.IsNullOrEmpty(name)) return "";
@@ -239,10 +195,6 @@ public static class LuaUnityTypes
         return new string(chars.ToArray());
     }
 }
-
-                                                                             
-                                                                               
-                                                                               
 public static class LuaPrefabObjects
 {
     [MoonSharpHidden]
@@ -258,7 +210,6 @@ public static class LuaPrefabObjects
         instance.SetActive(false);
         return instance;
     }
-
     [MoonSharpHidden]
     public static void SetParent(GameObject instance, object parent)
     {
@@ -284,35 +235,24 @@ public static class LuaPrefabObjects
         }
     }
 }
-
-                                                                             
-                                                                           
-                                                       
 [MoonSharpUserData]
 public class LuaMaterial
 {
     static readonly string[] ColorProperties = { "_BaseColor", "_Color", "_FaceColor", "_TintColor" };
-
     readonly Material material;
-
     [MoonSharpHidden]
     public LuaMaterial(Material material) { this.material = material; }
-
     [MoonSharpHidden]
     public Material UnityMaterial { get { return material; } }
-
     public string Name
     {
         get { return material != null ? material.name : ""; }
         set { if (material != null) material.name = value ?? ""; }
     }
-
     public string Shader
     {
         get { return material != null && material.shader != null ? material.shader.name : ""; }
     }
-
-                                                                                   
     public Color3 Color
     {
         get
@@ -339,18 +279,15 @@ public class LuaMaterial
             }
         }
     }
-
     public Color3 MainColor
     {
         get { return Color; }
         set { Color = value; }
     }
-
     public bool HasProperty(string property)
     {
         return material != null && !string.IsNullOrEmpty(property) && material.HasProperty(property);
     }
-
     public Color3 GetColor(string property)
     {
         if (material == null || string.IsNullOrEmpty(property) || !material.HasProperty(property))
@@ -358,7 +295,6 @@ public class LuaMaterial
         Color c = material.GetColor(property);
         return new Color3(c.r, c.g, c.b);
     }
-
     public void SetColor(string property, Color3 value)
     {
         if (material == null || value == null || string.IsNullOrEmpty(property)) return;
@@ -367,31 +303,22 @@ public class LuaMaterial
         c.a = material.GetColor(property).a;
         material.SetColor(property, c);
     }
-
     public float GetFloat(string property)
     {
         return material != null && !string.IsNullOrEmpty(property) && material.HasProperty(property)
             ? material.GetFloat(property)
             : 0f;
     }
-
     public void SetFloat(string property, float value)
     {
         if (material != null && !string.IsNullOrEmpty(property) && material.HasProperty(property))
             material.SetFloat(property, value);
     }
-
     public override string ToString()
     {
         return material != null ? material.name + " (" + Shader + ")" : "No material";
     }
 }
-
-                                    
-                                                                              
-                                                                           
-                                                                     
-                      
 public static class LuaFactory
 {
     public static object Create(string cls, object parent = null)
@@ -400,15 +327,12 @@ public static class LuaFactory
             throw new ScriptRuntimeException(
                 "GameObject.new needs a class name, for example GameObject.new('Cube') " +
                 "or GameObject.new('Text - TextMeshPro', parent).");
-
         object created;
-
         switch (cls)
         {
             case "BindableEvent":    created = new LuaBindableEvent(LuaWorld.Instance.Scheduler); break;
             case "BindableFunction": created = new LuaBindableFunction(); break;
             case "RemoteEvent":      created = new LuaRemoteEvent(LuaWorld.Instance.Scheduler); break;
-
             case "ScreenGui":
             case "Frame":
             case "ScrollingFrame":
@@ -417,48 +341,35 @@ public static class LuaFactory
             case "ImageLabel":
             case "ImageButton":
             case "TextBox":          created = new LuaGuiObject(cls); break;
-
             case "UIListLayout":
             case "UIGridLayout":
             case "LayoutElement":    created = new LuaGuiLayout(cls); break;
-
             default:                 created = CreateUnityObject(cls); break;
         }
-
         ApplyParent(created, parent);
         return created;
     }
-
     static void ApplyParent(object created, object parent)
     {
         if (created == null || parent == null) return;
-
         var instance = created as LuaInstance;
         if (instance != null) { instance.Parent = parent; return; }
-
         var gui = created as LuaGuiObject;
         if (gui != null) { gui.Parent = parent; return; }
-
         var layout = created as LuaGuiLayout;
         if (layout != null) { layout.Parent = parent as LuaGuiObject; return; }
-
         var bindable = created as LuaBindableEvent;
         if (bindable != null) { bindable.Parent = parent; return; }
-
         var bindableFunction = created as LuaBindableFunction;
         if (bindableFunction != null) { bindableFunction.Parent = parent; return; }
-
         var remote = created as LuaRemoteEvent;
         if (remote != null) { remote.Parent = parent; return; }
     }
-
     static object CreateUnityObject(string cls)
     {
-                                                                     
         var prefab = Resources.Load<GameObject>("Prefabs/" + cls);
         if (prefab != null)
             return LuaInstance.FromPrefab(prefab, cls);
-
         if (string.Equals(cls, "GameObject", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(cls, "Empty", StringComparison.OrdinalIgnoreCase))
         {
@@ -466,7 +377,6 @@ public static class LuaFactory
             empty.SetActive(true);
             return LuaInstance.WrapAs(empty, cls);
         }
-
         PrimitiveType primitive;
         if (TryGetPrimitive(cls, out primitive))
         {
@@ -475,7 +385,6 @@ public static class LuaFactory
             go.SetActive(true);
             return LuaInstance.WrapAs(go, cls);
         }
-
         Type type = LuaUnityTypes.ResolveComponent(cls);
         if (type == null)
             throw new ScriptRuntimeException(
@@ -483,18 +392,15 @@ public static class LuaFactory
                 "(for example 'Rigidbody' or 'Text - TextMeshPro'), a primitive " +
                 "('Cube', 'Sphere', 'Capsule', 'Cylinder', 'Plane', 'Quad'), a UI class, " +
                 "or add a prefab at Assets/Resources/Prefabs/" + cls + ".prefab.");
-
         if (type == typeof(RectTransform))
         {
             var rectGo = new GameObject(cls, typeof(RectTransform));
             rectGo.SetActive(true);
             return LuaInstance.WrapAs(rectGo, cls);
         }
-
         GameObject host = LuaUnityTypes.IsUiComponent(type)
             ? new GameObject(cls, typeof(RectTransform))
             : new GameObject(cls);
-
         Component component;
         try { component = host.AddComponent(type); }
         catch (Exception e)
@@ -503,25 +409,20 @@ public static class LuaFactory
             throw new ScriptRuntimeException(
                 "Cannot add Unity component '" + cls + "' (" + type.FullName + "): " + e.Message);
         }
-
         if (component == null)
         {
             UnityEngine.Object.Destroy(host);
             throw new ScriptRuntimeException(
                 "Unity did not add component '" + cls + "' (" + type.FullName + ").");
         }
-
-                                                                         
         if (type == typeof(Canvas))
         {
             if (host.GetComponent<CanvasScaler>() == null) host.AddComponent<CanvasScaler>();
             if (host.GetComponent<GraphicRaycaster>() == null) host.AddComponent<GraphicRaycaster>();
         }
-
         host.SetActive(true);
         return LuaInstance.WrapAs(host, cls);
     }
-
     static bool TryGetPrimitive(string cls, out PrimitiveType primitive)
     {
         switch ((cls ?? "").Trim().ToLowerInvariant())
@@ -536,67 +437,50 @@ public static class LuaFactory
         }
     }
 }
-
-                                                       
-
-                                               
-                                               
-                        
 [MoonSharpUserData]
 public class LuaBindableFunction
 {
     readonly GameObject go;
     object parent;
     public DynValue OnInvoke { get; set; }
-
     [MoonSharpHidden]
     public LuaBindableFunction()
     {
         go = LuaPrefabObjects.Create("BindableFunction");
         LuaWorld.Instance.Scheduler.TrackCleanup(Destroy);
     }
-
     public object Parent
     {
         get { return parent; }
         set { parent = value; LuaPrefabObjects.SetParent(go, value); }
     }
-
     public string Name
     {
         get { return go != null ? go.name : "BindableFunction"; }
         set { if (go != null) go.name = value ?? "BindableFunction"; }
     }
-
     public void Destroy()
     {
         parent = null;
         if (go != null) UnityEngine.Object.Destroy(go);
     }
-
     public DynValue Invoke(params object[] args)
     {
         if (OnInvoke == null || OnInvoke.Type != DataType.Function) return DynValue.Nil;
-
         var lua = LuaWorld.Instance.Lua;
         var dyn = new DynValue[args.Length];
         for (int i = 0; i < args.Length; i++) dyn[i] = DynValue.FromObject(lua, args[i]);
-
         DynValue result = lua.Call(OnInvoke, dyn);
         if (result.Type == DataType.Tuple && result.Tuple.Length > 0) result = result.Tuple[0];
         return result;
     }
 }
-
-                                                                                      
-                                                                     
 [MoonSharpUserData]
 public class LuaRemoteEvent
 {
     public Signal OnServerEvent, OnClientEvent;
     readonly GameObject go;
     object parent;
-
     [MoonSharpHidden]
     public LuaRemoteEvent(Scheduler s)
     {
@@ -605,51 +489,37 @@ public class LuaRemoteEvent
         go = LuaPrefabObjects.Create("RemoteEvent");
         s.TrackCleanup(Destroy);
     }
-
     public object Parent
     {
         get { return parent; }
         set { parent = value; LuaPrefabObjects.SetParent(go, value); }
     }
-
     public string Name
     {
         get { return go != null ? go.name : "RemoteEvent"; }
         set { if (go != null) go.name = value ?? "RemoteEvent"; }
     }
-
     public void Destroy()
     {
         parent = null;
         if (go != null) UnityEngine.Object.Destroy(go);
     }
-
     public void FireServer(params object[] args)     { OnServerEvent.Fire(args); }
     public void FireClient(params object[] args)     { OnClientEvent.Fire(args); }
     public void FireAllClients(params object[] args) { OnClientEvent.Fire(args); }
 }
-
-                                
-
-                                                                                  
 [MoonSharpUserData]
 public class LuaPrefab
 {
     public string Name;
     readonly GameObject prefab;
-
     [MoonSharpHidden] public LuaPrefab(GameObject p) { prefab = p; Name = p.name; }
-
     public LuaInstance Clone() { return LuaInstance.FromPrefab(prefab); }
 }
-
-                                                
-
 [MoonSharpUserData]
 public class LuaLighting
 {
     float clockTime = 14f;
-
     static Light Sun()
     {
         if (RenderSettings.sun != null) return RenderSettings.sun;
@@ -657,7 +527,6 @@ public class LuaLighting
             if (l.type == LightType.Directional) return l;
         return null;
     }
-
     public Color3 Ambient
     {
         get { var c = RenderSettings.ambientLight; return new Color3(c.r, c.g, c.b); }
@@ -667,30 +536,23 @@ public class LuaLighting
             RenderSettings.ambientLight = value.ToUnity();
         }
     }
-
     public bool FogEnabled
     {
         get { return RenderSettings.fog; }
         set { RenderSettings.fog = value; RenderSettings.fogMode = FogMode.Linear; }
     }
-
     public Color3 FogColor
     {
         get { var c = RenderSettings.fogColor; return new Color3(c.r, c.g, c.b); }
         set { RenderSettings.fogColor = value.ToUnity(); }
     }
-
     public float FogStart { get { return RenderSettings.fogStartDistance; } set { RenderSettings.fogStartDistance = value; } }
     public float FogEnd   { get { return RenderSettings.fogEndDistance; }   set { RenderSettings.fogEndDistance = value; } }
-
-                                                            
     public float Brightness
     {
         get { var s = Sun(); return s != null ? s.intensity : 0f; }
         set { var s = Sun(); if (s != null) s.intensity = value; }
     }
-
-                                                                   
     public float ClockTime
     {
         get { return clockTime; }
@@ -702,15 +564,11 @@ public class LuaLighting
         }
     }
 }
-
 [MoonSharpUserData]
 public class LuaSoundService
 {
     public float Volume { get { return AudioListener.volume; } set { AudioListener.volume = Mathf.Clamp01(value); } }
-
-                                                               
     public void PlaySound(string soundId) { PlaySound(soundId, 1f); }
-
     public void PlaySound(string soundId, float volume)
     {
         var clip = LuaAudio.LoadClip(soundId);
@@ -719,30 +577,22 @@ public class LuaSoundService
         AudioSource.PlayClipAtPoint(clip, pos, volume);
     }
 }
-
-                                                                            
-
 [Serializable]
 public class LuaStoreFile
 {
     public List<string> keys = new List<string>();
     public List<string> values = new List<string>();
 }
-
 [MoonSharpUserData]
 public class LuaDataStoreService
 {
     public LuaDataStore GetDataStore(string name) { return new LuaDataStore(name); }
 }
-
-                                                                
-                                                                
 [MoonSharpUserData]
 public class LuaDataStore
 {
     readonly string path;
     readonly Dictionary<string, string> data = new Dictionary<string, string>();
-
     [MoonSharpHidden]
     public LuaDataStore(string name)
     {
@@ -752,7 +602,6 @@ public class LuaDataStore
         path = Path.Combine(dir, name + ".json");
         Load();
     }
-
     void Load()
     {
         if (!File.Exists(path)) return;
@@ -763,14 +612,12 @@ public class LuaDataStore
         }
         catch (Exception e) { Debug.LogWarning("Could not read data store " + path + ": " + e.Message); }
     }
-
     void Save()
     {
         var f = new LuaStoreFile();
         foreach (var pair in data) { f.keys.Add(pair.Key); f.values.Add(pair.Value); }
         File.WriteAllText(path, JsonUtility.ToJson(f));
     }
-
     public void SetAsync(string key, DynValue value)
     {
         if (value.IsNil()) { RemoveAsync(key); return; }
@@ -779,7 +626,6 @@ public class LuaDataStore
         data[key] = JsonTableConverter.TableToJson(wrapper);
         Save();
     }
-
     public DynValue GetAsync(string key)
     {
         string json;
@@ -787,8 +633,6 @@ public class LuaDataStore
         Table t = JsonTableConverter.JsonToTable(json, LuaWorld.Instance.Lua);
         return t.Get("v");
     }
-
-                                                                          
     public DynValue UpdateAsync(string key, DynValue fn)
     {
         DynValue result = LuaWorld.Instance.Lua.Call(fn, GetAsync(key));
@@ -796,7 +640,6 @@ public class LuaDataStore
         SetAsync(key, result);
         return result;
     }
-
     public double IncrementAsync(string key, double delta)
     {
         DynValue old = GetAsync(key);
@@ -804,12 +647,10 @@ public class LuaDataStore
         SetAsync(key, DynValue.NewNumber(value));
         return value;
     }
-
     public void RemoveAsync(string key)
     {
         if (data.Remove(key)) Save();
     }
-
     public Table ListKeys()
     {
         var t = new Table(LuaWorld.Instance.Lua);

@@ -1,25 +1,18 @@
 using System;
 using System.Globalization;
 using UnityEngine;
-
 public enum LuaValueType { Number, Boolean, String, Vector3, Color, Object }
-
-                                                          
-                                                     
 [Serializable]
 public class LuaValue
 {
     public string name;
     public LuaValueType type;
-
     public float number;
     public bool boolean;
     public string text;
     public Vector3 vector;
     public Color color = Color.white;
     public GameObject target;
-
-                                                                                          
     public object ToLua()
     {
         switch (type)
@@ -33,8 +26,6 @@ public class LuaValue
         }
         return null;
     }
-
-                                                   
     static double ToDouble(float f)
     {
         if (float.IsNaN(f) || float.IsInfinity(f)) return f;

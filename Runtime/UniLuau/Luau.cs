@@ -4,44 +4,20 @@ using System.Text;
 using System.Text.RegularExpressions;
 using MoonSharp.Interpreter;
 using UnityEngine;
-
-                                                               
-           
-                                                                    
-                                                                                
-  
-                          
-                                                                 
-                                                                             
-                                                                           
-                                                                              
-                                                                      
-                                                                    
-                                                                    
-                                                                                      
-                                  
-                                                                                
-                                                               
-
 public static class LuaErrors
 {
-                                                                        
     public static readonly Dictionary<string, string> Sources = new Dictionary<string, string>();
-
     static readonly Regex Loc = new Regex(@"^(.*?):\((\d+),\d+[^)]*\):\s*(.*)$", RegexOptions.Singleline);
-
     public static string Format(InterpreterException e)
     {
         string msg = e.DecoratedMessage ?? e.Message;
         var sb = new StringBuilder();
-
         var m = Loc.Match(msg);
         if (m.Success)
         {
             string chunk = m.Groups[1].Value;
             int line = int.Parse(m.Groups[2].Value);
             sb.Append("Lua error in ").Append(chunk).Append(" line ").Append(line).Append(": ").Append(m.Groups[3].Value.Trim());
-
             string src;
             if (Sources.TryGetValue(chunk, out src))
             {
@@ -62,7 +38,6 @@ public static class LuaErrors
         {
             sb.Append("Lua error: ").Append(msg);
         }
-
         var stack = e.CallStack;
         if (stack != null)
         {
@@ -77,27 +52,21 @@ public static class LuaErrors
         }
         return sb.ToString();
     }
-
     public static void Log(InterpreterException e)
     {
         Debug.LogError(Format(e));
     }
 }
-
 public static class Luau
 {
-                                                     
     public static bool Enabled = true;
-
     enum TT { Ident, Keyword, Number, Str, Op }
-
     class Tok
     {
         public string Prefix = "";                                            
         public string Text;
         public TT Type;
     }
-
     class Blk
     {
         public string Kind;                                                          
@@ -105,23 +74,19 @@ public static class Luau
         public int StartIdx, DoIdx = -1, EndIdx = -1, Id;
         public bool HasContinue;
     }
-
     static readonly HashSet<string> Keywords = new HashSet<string>
     {
         "and", "break", "do", "else", "elseif", "end", "false", "for", "function", "goto", "if", "in",
         "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while"
     };
-
     static readonly string[] Ops =
     {
         "...", "..=", "..", "==", "~=", "<=", ">=", "::", "+=", "-=", "*=", "/=", "%=", "^=", "->"
     };
-
     static readonly HashSet<string> BinaryOps = new HashSet<string>
     {
         "+", "-", "*", "/", "%", "^", "..", "==", "~=", "<", ">", "<=", ">=", "and", "or", "not", ".", ":", ","
     };
-
     public static string Transpile(string src)
     {
         if (!Enabled || string.IsNullOrEmpty(src)) return src;
@@ -132,7 +97,6 @@ public static class Luau
             StripTypes(toks);
             CompoundAssign(toks);
             Continues(toks);
-
             var sb = new StringBuilder(src.Length + 64);
             foreach (var t in toks) sb.Append(t.Prefix).Append(t.Text);
             sb.Append(tail);
@@ -144,24 +108,15 @@ public static class Luau
             return src;
         }
     }
-
-                                                                   
-                 
-                                                                   
-
     static List<Tok> Tokenize(string s, out string tail)
     {
         var toks = new List<Tok>();
         var prefix = new StringBuilder();
         int i = 0, n = s.Length;
-
         while (i < n)
         {
             char c = s[i];
-
             if (char.IsWhiteSpace(c)) { prefix.Append(c); i++; continue; }
-
-                                                            
             if (c == '-' && i + 1 < n && s[i + 1] == '-')
             {
                 int end = -1;
@@ -175,11 +130,9 @@ public static class Luau
                 i = end;
                 continue;
             }
-
             var tok = new Tok { Prefix = prefix.ToString() };
             prefix.Length = 0;
             int start = i;
-
             if (char.IsLetter(c) || c == '_')
             {
                 while (i < n && (char.IsLetterOrDigit(s[i]) || s[i] == '_')) i++;
@@ -237,15 +190,11 @@ public static class Luau
                 tok.Text = op;
                 tok.Type = TT.Op;
             }
-
             toks.Add(tok);
         }
-
         tail = prefix.ToString();
         return toks;
     }
-
-                                                                                                    
     static int LongBracketEnd(string s, int pos)
     {
         int j = pos + 1, level = 0;
@@ -255,19 +204,15 @@ public static class Luau
         int end = s.IndexOf(close, j + 1, StringComparison.Ordinal);
         return end < 0 ? s.Length : end + close.Length;
     }
-
-                                                               
     static string ParseBacktick(string s, ref int i)
     {
         int n = s.Length, newlines = 0;
         i++;                    
         var parts = new List<string>();
         var lit = new StringBuilder();
-
         while (i < n && s[i] != '`')
         {
             char c = s[i];
-
             if (c == '\\' && i + 1 < n)
             {
                 char d = s[i + 1];
@@ -276,7 +221,6 @@ public static class Luau
                 i += 2;
                 continue;
             }
-
             if (c == '{')
             {
                 int depth = 1, j = i + 1;
@@ -292,25 +236,15 @@ public static class Luau
                 i = j;
                 continue;
             }
-
             if (c == '"') lit.Append("\\\"");
             else if (c == '\n') { lit.Append("\\n"); newlines++; }
             else if (c != '\r') lit.Append(c);
             i++;
         }
         i = Math.Min(n, i + 1);                    
-
         if (lit.Length > 0 || parts.Count == 0) parts.Add("\"" + lit + "\"");
-
-                                                                                                   
         return "(" + string.Join(" .. ", parts.ToArray()) + ")" + new string('\n', newlines);
     }
-
-                                                                   
-                       
-                                                                   
-
-                                                           
     static void Remove(List<Tok> t, int from, int to)
     {
         if (to > t.Count) to = t.Count;
@@ -323,19 +257,12 @@ public static class Luau
             t[i].Text = "";
         }
     }
-
-                                                                   
-                        
-                                                                   
-
     static void StripTypes(List<Tok> t)
     {
         for (int i = 0; i < t.Count; i++)
         {
             var k = t[i];
             string x = k.Text;
-
-                                                          
             if (k.Type == TT.Ident && x == "type" && i + 2 < t.Count && t[i + 1].Type == TT.Ident
                 && (t[i + 2].Text == "=" || t[i + 2].Text == "<")
                 && !(i > 0 && (t[i - 1].Text == "." || t[i - 1].Text == ":")))
@@ -348,8 +275,6 @@ public static class Luau
                 i = j - 1;
                 continue;
             }
-
-                                               
             if (k.Type == TT.Keyword && x == "local")
             {
                 int j = i + 1;
@@ -367,8 +292,6 @@ public static class Luau
                 }
                 continue;
             }
-
-                                                                   
             if (k.Type == TT.Keyword && x == "function")
             {
                 int j = i + 1;
@@ -385,7 +308,6 @@ public static class Luau
                     j++;
                 }
                 if (j >= t.Count || t[j].Text != "(") continue;
-
                 int depth = 0, p = j;
                 for (; p < t.Count; p++)
                 {
@@ -403,7 +325,6 @@ public static class Luau
                         p = endParam - 1;
                     }
                 }
-
                 if (p + 1 < t.Count && t[p + 1].Text == ":")
                 {
                     int endReturn = SkipType(t, p + 2);
@@ -411,8 +332,6 @@ public static class Luau
                 }
                 continue;
             }
-
-                                                                   
             if (k.Type == TT.Op && x == "::")
             {
                 if (i + 2 < t.Count && t[i + 1].Type == TT.Ident && t[i + 2].Text == "::") { i += 2; continue; }
@@ -422,29 +341,23 @@ public static class Luau
             }
         }
     }
-
-                                                          
     static int SkipType(List<Tok> t, int i)
     {
         i = SkipTypeAtom(t, i);
         while (i < t.Count && (t[i].Text == "|" || t[i].Text == "&")) i = SkipTypeAtom(t, i + 1);
         return i;
     }
-
     static int SkipTypeAtom(List<Tok> t, int i)
     {
         if (i >= t.Count) return i;
         string x = t[i].Text;
-
         if (x == "(")
         {
             i = SkipBalanced(t, i, "(", ")");
             if (i < t.Count && t[i].Text == "->") i = SkipType(t, i + 1);
             return SkipQuestion(t, i);
         }
-
         if (x == "{") return SkipQuestion(t, SkipBalanced(t, i, "{", "}"));
-
         if (t[i].Type == TT.Ident || x == "nil")
         {
             string name = x;
@@ -454,18 +367,14 @@ public static class Luau
             else if (name == "typeof" && i < t.Count && t[i].Text == "(") i = SkipBalanced(t, i, "(", ")");
             return SkipQuestion(t, i);
         }
-
         if (t[i].Type == TT.Str) return SkipQuestion(t, i + 1);
         return i + 1;
     }
-
     static int SkipQuestion(List<Tok> t, int i)
     {
         while (i < t.Count && t[i].Text == "?") i++;
         return i;
     }
-
-                                                                                       
     static int SkipBalanced(List<Tok> t, int i, string open, string close)
     {
         int depth = 0;
@@ -480,18 +389,12 @@ public static class Luau
         }
         return t.Count;
     }
-
-                                                                   
-                                                       
-                                                                   
-
     static void CompoundAssign(List<Tok> t)
     {
         for (int i = 0; i < t.Count; i++)
         {
             var k = t[i];
             if (k.Type != TT.Op) continue;
-
             string op;
             switch (k.Text)
             {
@@ -504,29 +407,22 @@ public static class Luau
                 case "..=": op = ".."; break;
                 default: continue;
             }
-
             int lhs = LhsStart(t, i);
             if (lhs < 0) continue;
-
             int rhsEnd = RhsEnd(t, i + 1);
             if (rhsEnd < i + 1) continue;
-
             k.Text = "= " + Join(t, lhs, i) + " " + op;
             t[i + 1].Text = "(" + t[i + 1].Text;
             t[rhsEnd].Text = t[rhsEnd].Text + ")";
         }
     }
-
-                                                                                
     static int LhsStart(List<Tok> t, int opIdx)
     {
         int p = opIdx - 1;
         int start = -1;
-
         while (p >= 0)
         {
             var tk = t[p];
-
             if (tk.Type == TT.Ident)
             {
                 start = p;
@@ -534,7 +430,6 @@ public static class Luau
                 if (p >= 0 && t[p].Text == ".") { p--; continue; }
                 break;
             }
-
             if (tk.Text == "]")
             {
                 int depth = 0, q = p;
@@ -553,30 +448,24 @@ public static class Luau
                 if (p >= 0 && (t[p].Type == TT.Ident || t[p].Text == "]")) continue;
                 break;
             }
-
             break;
         }
         return start;
     }
-
-                                                                                                      
     static int RhsEnd(List<Tok> t, int from)
     {
         int depth = 0;
         int last = from - 1;
-
         for (int k = from; k < t.Count; k++)
         {
             var tk = t[k];
             string x = tk.Text;
             if (x.Length == 0) continue;
-
             if (depth == 0 && k > from)
             {
                 if (x == ";") break;
                 if (tk.Prefix.IndexOf('\n') >= 0 && last >= from && !BinaryOps.Contains(t[last].Text) && !BinaryOps.Contains(x)) break;
             }
-
             if (x == "(" || x == "[" || x == "{") depth++;
             else if (x == ")" || x == "]" || x == "}")
             {
@@ -593,12 +482,10 @@ public static class Luau
                 }
                 else if ((x == "else" || x == "elseif") && depth == 0) break;
             }
-
             last = k;
         }
         return last;
     }
-
     static string Join(List<Tok> t, int from, int to)
     {
         var sb = new StringBuilder();
@@ -611,28 +498,17 @@ public static class Luau
         }
         return sb.ToString();
     }
-
     static bool IsWord(char c) { return char.IsLetterOrDigit(c) || c == '_'; }
-
-                                                                   
-                
-                                    
-                                                                                       
-                                                                  
-                                                                   
-
     static void Continues(List<Tok> t)
     {
         var stack = new List<Blk>();
         var loops = new List<Blk>();
         var breaks = new List<KeyValuePair<int, Blk>>();
         var conts = new List<KeyValuePair<int, Blk>>();
-
         for (int i = 0; i < t.Count; i++)
         {
             var tk = t[i];
             string x = tk.Text;
-
             if (tk.Type == TT.Keyword)
             {
                 if (x == "for" || x == "while")
@@ -674,11 +550,9 @@ public static class Luau
                 }
             }
         }
-
         int id = 0;
         foreach (var b in loops)
             if (b.HasContinue && IsRewritable(b)) b.Id = ++id;
-
         foreach (var b in loops)
         {
             if (!b.HasContinue || !IsRewritable(b)) continue;
@@ -694,19 +568,15 @@ public static class Luau
                 t[b.EndIdx].Text = "until true if " + flag + " then break end until";
             }
         }
-
         foreach (var kv in breaks)
             if (kv.Value.HasContinue && IsRewritable(kv.Value)) t[kv.Key].Text = "__c" + kv.Value.Id + " = true break";
-
         foreach (var kv in conts)
             if (IsRewritable(kv.Value)) t[kv.Key].Text = "break";
     }
-
     static bool IsRewritable(Blk b)
     {
         return b.EndIdx >= 0 && (b.Kind != "loop" || b.DoIdx >= 0);
     }
-
     static Blk NearestLoop(List<Blk> stack)
     {
         for (int s = stack.Count - 1; s >= 0; s--)
@@ -717,7 +587,6 @@ public static class Luau
         }
         return null;
     }
-
     static bool IsContinueStatement(List<Tok> t, int i)
     {
         if (i > 0 && (t[i - 1].Text == "." || t[i - 1].Text == ":")) return false;
