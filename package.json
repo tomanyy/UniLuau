@@ -1,0 +1,27 @@
+{
+  "name": "com.tomany.uniluau",
+  "version": "0.1.0",
+  "displayName": "UniLuau",
+  "description": "Write Unity gameplay scripts in Lua and Luau.",
+  "unity": "6000.0",
+  "keywords": [
+    "lua",
+    "luau",
+    "scripting",
+    "unity"
+  ],
+  "author": {
+    "name": "tomanyy"
+  },
+  "dependencies": {
+    "com.unity.inputsystem": "1.20.1",
+    "com.unity.ugui": "2.6.0"
+  },
+  "samples": [
+    {
+      "displayName": "Lua examples and smoke tests",
+      "description": "Starter Lua scripts and a broad Play Mode smoke test.",
+      "path": "Samples~/Lua"
+    }
+  ]
+}
