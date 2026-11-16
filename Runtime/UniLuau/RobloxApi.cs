@@ -1391,13 +1391,17 @@ public class LuaMouse
 public class LuaRunService
 {
     public Signal Stepped, RenderStepped, Heartbeat;
+    public Signal FixedUpdate, LateUpdate;
     [MoonSharpHidden]
-    public LuaRunService(Signal stepped, Signal renderStepped, Signal heartbeat)
+    public LuaRunService(Signal stepped, Signal renderStepped, Signal heartbeat, Signal fixedUpdate, Signal lateUpdate)
     {
         Stepped = stepped;
         RenderStepped = renderStepped;
         Heartbeat = heartbeat;
+        FixedUpdate = fixedUpdate;
+        LateUpdate = lateUpdate;
     }
+    public Signal Update { get { return Heartbeat; } }
 }
 [MoonSharpUserData]
 public class LuaUserInputService
@@ -1719,7 +1723,9 @@ public class LuaWorld
     public Scheduler Scheduler;
     public LuaPhysicsService PhysicsService;
     public LuaContextActionService ContextActionService;
+    public LuaRunService RunService;
     Signal heartbeat, renderStepped, stepped;
+    Signal fixedUpdate, lateUpdate;
     Signal inputBegan, inputEnded, touchStarted, touchEnded, touchMoved;
     readonly Dictionary<string, DynValue> moduleCache = new Dictionary<string, DynValue>();
     readonly HashSet<string> loading = new HashSet<string>();
@@ -1766,12 +1772,15 @@ public class LuaWorld
         heartbeat     = new Signal(Scheduler);
         renderStepped = new Signal(Scheduler);
         stepped       = new Signal(Scheduler);
+        fixedUpdate   = new Signal(Scheduler);
+        lateUpdate    = new Signal(Scheduler);
         inputBegan    = new Signal(Scheduler);
         inputEnded    = new Signal(Scheduler);
         touchStarted  = new Signal(Scheduler);
         touchEnded    = new Signal(Scheduler);
         touchMoved    = new Signal(Scheduler);
-        var run  = new LuaRunService(stepped, renderStepped, heartbeat);
+        var run  = new LuaRunService(stepped, renderStepped, heartbeat, fixedUpdate, lateUpdate);
+        RunService = run;
         var uis  = new LuaUserInputService(inputBegan, inputEnded, touchStarted, touchEnded, touchMoved);
         var game = new LuaGame(run, uis);
         PhysicsService = new LuaPhysicsService();
@@ -2382,6 +2391,8 @@ public class LuaWorld
         renderStepped.Fire(dt);
         heartbeat.Fire(dt);
     }
+    public void FixedTick(float dt) { fixedUpdate.Fire(dt); }
+    public void LateTick(float dt) { lateUpdate.Fire(dt); }
     void PollInput()
     {
         var kb = Keyboard.current;

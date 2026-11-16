@@ -1,6 +1,8 @@
 # UniLuau
 UniLuau is a Unity Package Manager package for running Lua and a practical subset of Luau in Unity. It includes a Lua Behaviour component, Unity object and component bindings, UI and input helpers, editor import/attach tools, and hot reload while playing.
 
+Lua behaviours expose a Unity-oriented `Unity` global for scene and GameObject access, object creation and cloning, Unity frame callbacks, and context-aware logging. Existing script bindings remain available.
+
 ## Install from GitHub
 
 In Unity, open **Window > Package Management > Package Manager**, select **+ > Add package from git URL**, and enter:
@@ -20,6 +22,10 @@ The package requires Unity 6 and declares the Input System and Unity UI package 
 You can also drag a Lua asset onto a GameObject in the Hierarchy or select it and use **Assets > Add Lua Script to New GameObject**. The component supports Inspector values, runtime status/error reporting, and hot reload in the Editor.
 
 Import the **Lua examples and smoke tests** sample from Package Manager for starter scripts. The broad smoke test expects a scene containing objects named `Main Camera`, `Cube`, and `Capsule`; see `Documentation~/LUA_GUIDE.md` for details and the Unity API facade.
+
+## Developer guide
+
+Browse the [wiki page drafts](Wiki/Home.md) for installation, scripting, Unity bindings, input, UI, modules, and troubleshooting.
 
 ## Package layout
 

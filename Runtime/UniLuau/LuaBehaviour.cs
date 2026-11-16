@@ -61,7 +61,9 @@ public class LuaBehaviour : MonoBehaviour
         meta["__index"] = lua.Globals;
         env.MetaTable = meta;
         env["script"] = scriptRef;
-        env["unity"] = new LuaUnityApi(gameObject, allowAudio, allowAnimation, allowSceneLoading);
+        var unityApi = new LuaUnityApi(gameObject, world.RunService, allowAudio, allowAnimation, allowSceneLoading);
+        env["unity"] = unityApi;
+        env["Unity"] = unityApi;
         try
         {
             var chunk = lua.LoadString(source, env, script.name);

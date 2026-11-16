@@ -22,6 +22,7 @@ test("Unity-named audio, animation and scene API is exposed", function()
     assert(type(unity.LoadScene) == "function")
     assert(type(unity.LoadSceneAsync) == "function")
 end)
+
 test("Lua values, math, Luau syntax and script attributes", function()
     local v = Vector3.new(3, 4, 0)
     assert(math.abs(v.Magnitude - 5) < 0.001)
