@@ -20,6 +20,8 @@ public class LuaBehaviour : MonoBehaviour
     bool hasStarted;
     public string RuntimeStatus { get; private set; } = "Not started";
     public string LastError { get; private set; }
+    public LuaScriptMetrics Metrics { get { return scriptRef != null && LuaWorld.Exists ? LuaWorld.Instance.Scheduler.GetOwnerMetrics(scriptRef) : null; } }
+    public bool IsPaused { get { var m = Metrics; return m != null && m.Paused; } }
 #if UNITY_EDITOR
     string[] snapshots;
     float nextCheck;
@@ -47,6 +49,8 @@ public class LuaBehaviour : MonoBehaviour
         var world = LuaWorld.Instance;
         var lua = world.Lua;
         scriptRef = new LuaScriptRef(LuaInstance.Wrap(gameObject), script.name);
+        var metrics = world.Scheduler.GetOwnerMetrics(scriptRef);
+        metrics.Name = script.name;
         if (values != null)
         {
             foreach (var v in values)
@@ -74,6 +78,8 @@ public class LuaBehaviour : MonoBehaviour
         {
             RuntimeStatus = "Error";
             LastError = LuaErrors.Format(e);
+            metrics.Errors++;
+            metrics.LastError = LastError;
             LuaErrors.Log(e);                 
         }
 #if UNITY_EDITOR
@@ -88,7 +94,17 @@ public class LuaBehaviour : MonoBehaviour
         if (scriptRef != null) world.Scheduler.KillOwner(scriptRef);
         scriptRef = null;
         world.ClearModules();
-        Debug.Log("[Lua] Reloaded " + script.name);
+        if (script != null) Debug.Log("[Lua] Reloaded " + script.name);
+        Run();
+    }
+    public void PauseScript() { if (scriptRef != null && LuaWorld.Exists) LuaWorld.Instance.Scheduler.PauseOwner(scriptRef); }
+    public void ResumeScript() { if (scriptRef != null && LuaWorld.Exists) LuaWorld.Instance.Scheduler.ResumeOwner(scriptRef); }
+    public void StepScript() { if (scriptRef != null && LuaWorld.Exists) LuaWorld.Instance.Scheduler.StepOwner(scriptRef); }
+    public void RestartScript()
+    {
+        if (scriptRef != null && LuaWorld.Exists) LuaWorld.Instance.Scheduler.KillOwner(scriptRef);
+        scriptRef = null;
+        if (LuaWorld.Exists) LuaWorld.Instance.ClearModules();
         Run();
     }
     void OnDestroy()

@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
+using Stopwatch = System.Diagnostics.Stopwatch;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
@@ -155,6 +157,9 @@ public class LuaRandom
 public class TaskHandle
 {
     [MoonSharpHidden] public bool Cancelled;
+    [MoonSharpHidden] public Action Cancellation;
+    public bool IsCancelled { get { return Cancelled; } }
+    public void Cancel() { if (Cancelled) return; Cancelled = true; if (Cancellation != null) Cancellation(); }
 }
 [MoonSharpUserData]
 public class SignalWaitToken
@@ -181,7 +186,7 @@ public class Signal
 {
     readonly Scheduler scheduler;
     readonly List<Connection> connections = new List<Connection>();
-    readonly List<Action<object[]>> waiters = new List<Action<object[]>>();
+    readonly List<SignalWaiter> waiters = new List<SignalWaiter>();
     [MoonSharpHidden] public event Action<object[]> Raised;
     [MoonSharpHidden] public Signal(Scheduler s) { scheduler = s; }
     public Connection Connect(DynValue fn)
@@ -199,10 +204,11 @@ public class Signal
     }
     public DynValue Wait()
     {
-        var token = DynValue.FromObject(LuaWorld.Instance.Lua, new SignalWaitToken(this));
+        var token = scheduler.CreateWaitToken(this);
         return DynValue.NewYieldReq(new[] { token });
     }
-    [MoonSharpHidden] public void AddWaiter(Action<object[]> w) { waiters.Add(w); }
+    [MoonSharpHidden] public void AddWaiter(SignalWaiter w) { waiters.Add(w); }
+    [MoonSharpHidden] public void RemoveWaiter(SignalWaiter w) { waiters.Remove(w); }
     [MoonSharpHidden]
     public void Remove(Connection c)
     {
@@ -222,11 +228,33 @@ public class Signal
         {
             var ws = waiters.ToArray();
             waiters.Clear();
-            foreach (var w in ws) w(args);
+            foreach (var w in ws) { waiters.Remove(w); w.Fire(args); }
         }
         var raised = Raised;
         if (raised != null) raised(args);
     }
+}
+public sealed class SignalWaiter
+{
+    readonly Signal signal;
+    readonly Action<object[]> callback;
+    [MoonSharpHidden] public SignalWaiter(Signal s, Action<object[]> cb) { signal = s; callback = cb; }
+    [MoonSharpHidden] public void Fire(object[] args) { callback(args); }
+    [MoonSharpHidden] public void Cancel() { if (signal != null) signal.RemoveWaiter(this); }
+}
+public sealed class LuaScriptMetrics
+{
+    public string Name { get; internal set; }
+    public int Resumes { get; internal set; }
+    public int ActiveTasks { get; internal set; }
+    public int Connections { get; internal set; }
+    public int PendingDelays { get; internal set; }
+    public int Errors { get; internal set; }
+    public string LastError { get; internal set; }
+    public double LastResumeMilliseconds { get; internal set; }
+    public double TotalResumeMilliseconds { get; internal set; }
+    public double MaxResumeMilliseconds { get; internal set; }
+    public bool Paused { get; internal set; }
 }
 public class Scheduler
 {
@@ -238,16 +266,51 @@ public class Scheduler
         public float WakeAt;
         public object Owner;
         public TaskHandle Handle;
+        public SignalWaiter Waiter;
     }
     readonly Script script;
     readonly List<Job> jobs = new List<Job>();
+    readonly HashSet<Job> waitingJobs = new HashSet<Job>();
     readonly List<Connection> allConnections = new List<Connection>();
     readonly HashSet<object> deadOwners = new HashSet<object>();
     readonly Dictionary<object, List<Action>> cleanups = new Dictionary<object, List<Action>>();
+    readonly Dictionary<object, LuaScriptMetrics> metrics = new Dictionary<object, LuaScriptMetrics>();
+    readonly HashSet<object> pausedOwners = new HashSet<object>();
+    readonly Dictionary<object, int> stepBudget = new Dictionary<object, int>();
     float now;
     public object CurrentOwner;
     public Scheduler(Script s) { script = s; }
+    [MoonSharpHidden] public DynValue CreateWaitToken(Signal signal) { return DynValue.FromObject(script, new SignalWaitToken(signal)); }
     bool IsDead(object owner) { return owner != null && deadOwners.Contains(owner); }
+    LuaScriptMetrics EnsureMetrics(object owner)
+    {
+        if (owner == null) return null;
+        LuaScriptMetrics m;
+        if (!metrics.TryGetValue(owner, out m)) { m = new LuaScriptMetrics(); metrics.Add(owner, m); }
+        return m;
+    }
+    public LuaScriptMetrics GetOwnerMetrics(object owner)
+    {
+        var m = EnsureMetrics(owner);
+        if (m == null) return null;
+        m.ActiveTasks = jobs.FindAll(j => j.Owner == owner && (j.Handle == null || !j.Handle.Cancelled)).Count + waitingJobs.Count(j => j.Owner == owner && (j.Handle == null || !j.Handle.Cancelled));
+        m.Connections = allConnections.FindAll(c => c.Owner == owner && c.Connected).Count;
+        m.PendingDelays = jobs.FindAll(j => j.Owner == owner && j.DelayedFn != null).Count;
+        m.Paused = pausedOwners.Contains(owner);
+        return m;
+    }
+    public void PauseOwner(object owner) { if (owner != null) pausedOwners.Add(owner); }
+    public void ResumeOwner(object owner) { if (owner != null) { pausedOwners.Remove(owner); stepBudget.Remove(owner); } }
+    public void StepOwner(object owner) { if (owner != null) { pausedOwners.Add(owner); stepBudget[owner] = 1; } }
+    void CancelHandle(TaskHandle handle)
+    {
+        jobs.RemoveAll(j => j.Handle == handle);
+        foreach (var j in waitingJobs.Where(j => j.Handle == handle).ToArray())
+        {
+            if (j.Waiter != null) j.Waiter.Cancel();
+            waitingJobs.Remove(j);
+        }
+    }
     public void Register(Connection c) { allConnections.Add(c); }
     public void Unregister(Connection c) { allConnections.Remove(c); }
     public void TrackCleanup(Action a)
@@ -265,6 +328,15 @@ public class Scheduler
     {
         if (owner == null) return;
         deadOwners.Add(owner);
+        pausedOwners.Remove(owner);
+        stepBudget.Remove(owner);
+        foreach (var j in waitingJobs.Where(j => j.Owner == owner).ToArray())
+        {
+            if (j.Handle != null) j.Handle.Cancel();
+            if (j.Waiter != null) j.Waiter.Cancel();
+            waitingJobs.Remove(j);
+        }
+        foreach (var j in jobs.Where(j => j.Owner == owner).ToArray()) if (j.Handle != null) j.Handle.Cancel();
         jobs.RemoveAll(j => j.Owner == owner);
         foreach (var c in allConnections.ToArray())
             if (c.Owner == owner) c.Disconnect();
@@ -274,6 +346,7 @@ public class Scheduler
             cleanups.Remove(owner);
             foreach (var a in list) a();
         }
+        metrics.Remove(owner);
     }
     public TaskHandle Spawn(DynValue fn, params object[] args)
     {
@@ -282,6 +355,7 @@ public class Scheduler
     public TaskHandle SpawnOwned(object owner, DynValue fn, params object[] args)
     {
         var handle = new TaskHandle();
+        handle.Cancellation = () => CancelHandle(handle);
         if (IsDead(owner)) return handle;
         try
         {
@@ -291,6 +365,7 @@ public class Scheduler
         }
         catch (InterpreterException e)
         {
+            var m = EnsureMetrics(owner); if (m != null) { m.Errors++; m.LastError = LuaErrors.Format(e); }
             LuaErrors.Log(e);
         }
         return handle;
@@ -298,6 +373,7 @@ public class Scheduler
     public TaskHandle Delay(float seconds, DynValue fn, params object[] args)
     {
         var handle = new TaskHandle();
+        handle.Cancellation = () => CancelHandle(handle);
         jobs.Add(new Job { DelayedFn = fn, Args = args, WakeAt = now + seconds, Owner = CurrentOwner, Handle = handle });
         return handle;
     }
@@ -309,11 +385,19 @@ public class Scheduler
     {
         if (job.Handle != null && job.Handle.Cancelled) return;
         if (IsDead(job.Owner)) return;
+        if (job.Owner != null && pausedOwners.Contains(job.Owner))
+        {
+            int budget;
+            if (!stepBudget.TryGetValue(job.Owner, out budget) || budget <= 0) { if (job.Co != null) jobs.Add(job); return; }
+            stepBudget[job.Owner] = budget - 1;
+        }
         object previous = CurrentOwner;
         CurrentOwner = job.Owner;
+        var timer = Stopwatch.StartNew();
         try
         {
             DynValue result = job.Co.Coroutine.Resume(args);
+            if (job.Handle != null && job.Handle.Cancelled) return;
             if (job.Co.Coroutine.State == CoroutineState.Suspended)
             {
                 if (result.Type == DataType.Tuple && result.Tuple.Length > 0) result = result.Tuple[0];
@@ -321,12 +405,16 @@ public class Scheduler
                 if (result.Type == DataType.UserData) token = result.UserData.Object as SignalWaitToken;
                 if (token != null)
                 {
-                    token.Signal.AddWaiter(a =>
+                    job.Waiter = new SignalWaiter(token.Signal, a =>
                     {
+                        job.Waiter = null;
+                        waitingJobs.Remove(job);
                         var dyn = new DynValue[a.Length];
                         for (int n = 0; n < a.Length; n++) dyn[n] = DynValue.FromObject(script, a[n]);
                         Resume(job, dyn);
                     });
+                    waitingJobs.Add(job);
+                    token.Signal.AddWaiter(job.Waiter);
                 }
                 else
                 {
@@ -338,10 +426,14 @@ public class Scheduler
         }
         catch (InterpreterException e)
         {
+            var m = EnsureMetrics(job.Owner); if (m != null) { m.Errors++; m.LastError = LuaErrors.Format(e); }
             LuaErrors.Log(e);
         }
         finally
         {
+            timer.Stop();
+            var m = EnsureMetrics(job.Owner);
+            if (m != null) { m.Resumes++; m.LastResumeMilliseconds = timer.Elapsed.TotalMilliseconds; m.TotalResumeMilliseconds += m.LastResumeMilliseconds; m.MaxResumeMilliseconds = Math.Max(m.MaxResumeMilliseconds, m.LastResumeMilliseconds); }
             CurrentOwner = previous;
         }
     }
@@ -354,6 +446,11 @@ public class Scheduler
             jobs.Remove(j);
             if (j.Handle != null && j.Handle.Cancelled) continue;
             if (IsDead(j.Owner)) continue;
+            if (j.Owner != null && pausedOwners.Contains(j.Owner) && j.Callback == null)
+            {
+                int budget;
+                if (!stepBudget.TryGetValue(j.Owner, out budget) || budget <= 0) { jobs.Add(j); continue; }
+            }
             if (j.Callback != null) j.Callback();
             else if (j.Co == null) SpawnOwned(j.Owner, j.DelayedFn, j.Args ?? new object[0]);
             else Resume(j, new DynValue[0]);

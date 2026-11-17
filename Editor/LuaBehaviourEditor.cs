@@ -12,6 +12,34 @@ public class LuaBehaviourEditor : Editor
         {
             EditorGUILayout.HelpBox("Assign a .lua or .luau asset above. You can also drop one onto this object in the Hierarchy.", MessageType.Info);
         }
+        var behaviour = (LuaBehaviour)target;
+        EditorGUILayout.Space();
+        EditorGUILayout.LabelField("Lua Debugger", EditorStyles.boldLabel);
+        using (new EditorGUI.DisabledScope(!Application.isPlaying))
+        {
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                if (GUILayout.Button("Restart")) behaviour.RestartScript();
+                if (behaviour.IsPaused)
+                {
+                    if (GUILayout.Button("Resume")) behaviour.ResumeScript();
+                    if (GUILayout.Button("Step")) behaviour.StepScript();
+                }
+                else if (GUILayout.Button("Pause")) behaviour.PauseScript();
+            }
+        }
+        EditorGUILayout.LabelField("Status", behaviour.RuntimeStatus);
+        var metrics = behaviour.Metrics;
+        if (metrics != null)
+        {
+            EditorGUILayout.LabelField("Coroutine resumes", metrics.Resumes.ToString());
+            EditorGUILayout.LabelField("Active tasks / connections", metrics.ActiveTasks + " / " + metrics.Connections);
+            EditorGUILayout.LabelField("Pending delays / errors", metrics.PendingDelays + " / " + metrics.Errors);
+            EditorGUILayout.LabelField("Resume time (last / max)", metrics.LastResumeMilliseconds.ToString("F3") + " / " + metrics.MaxResumeMilliseconds.ToString("F3") + " ms");
+            if (!string.IsNullOrEmpty(metrics.LastError)) EditorGUILayout.HelpBox(metrics.LastError, MessageType.Error);
+        }
+        if (!string.IsNullOrEmpty(behaviour.LastError)) EditorGUILayout.HelpBox(behaviour.LastError, MessageType.Error);
+        if (Application.isPlaying) Repaint();
     }
 }
 [InitializeOnLoad]

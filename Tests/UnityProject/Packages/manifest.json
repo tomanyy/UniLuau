@@ -1,0 +1,9 @@
+{
+  "testables": ["com.tomany.uniluau"],
+  "dependencies": {
+    "com.tomany.uniluau": "file:../..",
+    "com.unity.inputsystem": "1.20.1",
+    "com.unity.ugui": "2.6.0",
+    "com.unity.test-framework": "1.4.6"
+  }
+}

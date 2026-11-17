@@ -35,3 +35,9 @@ Browse the [wiki page drafts](Wiki/Home.md) for installation, scripting, Unity b
 - `Documentation~/` contains setup and API notes.
 
 MoonSharp is distributed under its 3-clause BSD license; see `Runtime/ThirdParty/MoonSharp/LICENSE`. The UniLuau code is distributed under the repository's GPL-3.0 license.
+
+## Runtime profiling and debugger
+
+In Play mode, the Lua Behaviour Inspector reports per-script coroutine resume time, active tasks, signal connections, pending delays, and errors. Its controls pause between coroutine yields, step one resume slice, resume, or restart the script. Owner cleanup cancels tasks and waiters, disconnects signals, and removes tracked objects when the behaviour stops or reloads. See [Performance and debugging](Wiki/Performance-and-Debugging.md).
+
+The EditMode scheduler lifecycle tests live in `Tests/Editor`. GitHub Actions runs them through the Unity Test Framework using `Tests/UnityProject`; configure `UNITY_LICENSE` in repository secrets.
