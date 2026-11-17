@@ -1,6 +1,7 @@
 * [Home](Home)
 * [Getting Started](Getting-Started)
 * [Writing Scripts](Writing-Scripts)
+* [API Reference](API-Reference)
 * [Unity Objects and Components](Unity-Objects-and-Components)
 * [Input and UI](Input-and-UI)
 * [Audio, Animation, and Scenes](Audio-Animation-and-Scenes)
