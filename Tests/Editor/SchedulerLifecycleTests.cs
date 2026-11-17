@@ -67,6 +67,25 @@ public class SchedulerLifecycleTests
     }
 
     [Test]
+    public void CancellingHandleRemovesSignalWaiter()
+    {
+        var script = new Script(CoreModules.Preset_SoftSandbox);
+        var scheduler = new Scheduler(script);
+        var signal = new Signal(scheduler);
+        script.Globals["signal"] = DynValue.FromObject(script, signal);
+        script.DoString("calls = 0; function waitForSignal() calls = calls + 1; signal:Wait(); calls = calls + 1 end");
+        var owner = new object();
+        var handle = scheduler.SpawnOwned(owner, script.Globals.Get("waitForSignal"));
+
+        handle.Cancel();
+        signal.Fire();
+
+        Assert.IsTrue(handle.IsCancelled);
+        Assert.AreEqual(1, script.Globals.Get("calls").Number);
+        Assert.AreEqual(0, scheduler.GetOwnerMetrics(owner).ActiveTasks);
+    }
+
+    [Test]
     public void PauseAndStepResumeOnlyOneCoroutineSlice()
     {
         var script = new Script(CoreModules.Preset_SoftSandbox);

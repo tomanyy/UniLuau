@@ -8,6 +8,7 @@ UniLuau lets you run Lua and a practical subset of Luau in Unity. Start with [Ge
 - [Input and UI](Input-and-UI)
 - [Audio, Animation, and Scenes](Audio-Animation-and-Scenes)
 - [Modules, Inspector Values, and Errors](Modules-Values-and-Errors)
+- [Performance, Debugging, and Tests](Performance-and-Debugging)
 - [Samples and Troubleshooting](Samples-and-Troubleshooting)
 
 The sample scripts are also available from Unity Package Manager under **Samples** after installing UniLuau.

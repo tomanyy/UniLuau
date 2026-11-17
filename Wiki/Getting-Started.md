@@ -2,6 +2,8 @@
 
 ## Install the package
 
+UniLuau requires Unity 6 and declares its Input System and Unity UI dependencies in `package.json`.
+
 In Unity, open **Window > Package Management > Package Manager**, select **+ > Add package from git URL**, and enter:
 
 ```text

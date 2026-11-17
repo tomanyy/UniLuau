@@ -28,4 +28,4 @@ end)
 
 ## Errors and validation
 
-The inspector checks script syntax and reports missing literal `require` paths. At runtime, errors appear in the Unity Console and on the Lua Behaviour inspector with the script name and source line where available. The **Status** field shows whether the behaviour is ready, running, disabled, or has an error.
+The inspector checks script syntax and reports missing literal `require` paths. At runtime, errors appear in the Unity Console and on the Lua Behaviour inspector with the script name, source excerpt, and stack frames where available. The Inspector's **Lua Debugger** section also counts runtime errors. The **Status** field shows whether the behaviour is ready, running, disabled, or has an error. See [Performance, Debugging, and Tests](Performance-and-Debugging) for the runtime controls and metrics.

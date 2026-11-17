@@ -2058,7 +2058,7 @@ public class LuaWorld
         task["cancel"] = DynValue.NewCallback((ctx, a) =>
         {
             var h = a.Count > 0 && a[0].Type == DataType.UserData ? a[0].UserData.Object as TaskHandle : null;
-            if (h != null) h.Cancelled = true;
+            if (h != null) h.Cancel();
             return DynValue.Nil;
         });
         g["task"] = task;
