@@ -332,7 +332,7 @@ public static class LuaFactory
         {
             case "BindableEvent":    created = new LuaBindableEvent(LuaWorld.Instance.Scheduler); break;
             case "BindableFunction": created = new LuaBindableFunction(); break;
-            case "RemoteEvent":      created = new LuaRemoteEvent(LuaWorld.Instance.Scheduler); break;
+            case "RemoteEvent":      created = new LuaRemoteEvent(LuaWorld.Instance.Scheduler, LuaWorld.Instance.Network); break;
             case "ScreenGui":
             case "Frame":
             case "ScrollingFrame":
@@ -369,7 +369,9 @@ public static class LuaFactory
     {
         var prefab = Resources.Load<GameObject>("Prefabs/" + cls);
         if (prefab != null)
+        {
             return LuaInstance.FromPrefab(prefab, cls);
+        }
         if (string.Equals(cls, "GameObject", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(cls, "Empty", StringComparison.OrdinalIgnoreCase))
         {
@@ -481,12 +483,15 @@ public class LuaRemoteEvent
     public Signal OnServerEvent, OnClientEvent;
     readonly GameObject go;
     object parent;
+    readonly LuaNetworkService network;
     [MoonSharpHidden]
-    public LuaRemoteEvent(Scheduler s)
+    public LuaRemoteEvent(Scheduler s, LuaNetworkService network = null)
     {
+        this.network = network;
         OnServerEvent = new Signal(s);
         OnClientEvent = new Signal(s);
         go = LuaPrefabObjects.Create("RemoteEvent");
+        if (network != null) network.Register(this);
         s.TrackCleanup(Destroy);
     }
     public object Parent
@@ -497,16 +502,40 @@ public class LuaRemoteEvent
     public string Name
     {
         get { return go != null ? go.name : "RemoteEvent"; }
-        set { if (go != null) go.name = value ?? "RemoteEvent"; }
+        set
+        {
+            if (network != null) network.Unregister(this);
+            if (go != null) go.name = value ?? "RemoteEvent";
+            if (network != null) network.Register(this);
+        }
     }
     public void Destroy()
     {
         parent = null;
+        if (network != null) network.Unregister(this);
         if (go != null) UnityEngine.Object.Destroy(go);
     }
-    public void FireServer(params object[] args)     { OnServerEvent.Fire(args); }
-    public void FireClient(params object[] args)     { OnClientEvent.Fire(args); }
-    public void FireAllClients(params object[] args) { OnClientEvent.Fire(args); }
+    public void FireServer(params object[] args)
+    {
+        if (network != null && network.IsConnected) network.SendServer(Name, args);
+        else OnServerEvent.Fire(args);
+    }
+    public void FireClient(params object[] args)
+    {
+        if (network != null && network.IsConnected)
+            throw new ScriptRuntimeException("FireClient requires a target client ID. Use FireClientTo(clientId, ...)." );
+        else OnClientEvent.Fire(args);
+    }
+    public void FireClientTo(ulong clientId, params object[] args)
+    {
+        if (network != null && network.IsConnected) network.SendClient(Name, clientId, args);
+        else OnClientEvent.Fire(args);
+    }
+    public void FireAllClients(params object[] args)
+    {
+        if (network != null && network.IsConnected) network.SendAllClients(Name, args);
+        else OnClientEvent.Fire(args);
+    }
 }
 [MoonSharpUserData]
 public class LuaPrefab
@@ -514,7 +543,10 @@ public class LuaPrefab
     public string Name;
     readonly GameObject prefab;
     [MoonSharpHidden] public LuaPrefab(GameObject p) { prefab = p; Name = p.name; }
-    public LuaInstance Clone() { return LuaInstance.FromPrefab(prefab); }
+    public LuaInstance Clone()
+    {
+        return LuaInstance.FromPrefab(prefab);
+    }
 }
 [MoonSharpUserData]
 public class LuaLighting

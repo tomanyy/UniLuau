@@ -1,6 +1,6 @@
 # Audio, Animation, and Scenes
 
-Each Lua Behaviour has a Unity-oriented `unity` API scoped to its GameObject. Its Inspector capability switches control access through this facade.
+Each Lua Behaviour has a Unity-oriented `unity` API scoped to its GameObject.
 
 ## Audio
 

@@ -7,6 +7,7 @@ using UnityEngine;
 public static class LuaErrors
 {
     public static readonly Dictionary<string, string> Sources = new Dictionary<string, string>();
+    public static readonly Dictionary<string, string> AssetPaths = new Dictionary<string, string>();
     static readonly Regex Loc = new Regex(@"^(.*?):\((\d+),\d+[^)]*\):\s*(.*)$", RegexOptions.Singleline);
     public static string Format(InterpreterException e)
     {
@@ -18,6 +19,9 @@ public static class LuaErrors
             string chunk = m.Groups[1].Value;
             int line = int.Parse(m.Groups[2].Value);
             sb.Append("Lua error in ").Append(chunk).Append(" line ").Append(line).Append(": ").Append(m.Groups[3].Value.Trim());
+            string assetPath;
+            if (AssetPaths.TryGetValue(chunk, out assetPath) && !string.IsNullOrEmpty(assetPath))
+                sb.Append("\n   at ").Append(assetPath).Append(':').Append(line);
             string src;
             if (Sources.TryGetValue(chunk, out src))
             {
@@ -52,9 +56,9 @@ public static class LuaErrors
         }
         return sb.ToString();
     }
-    public static void Log(InterpreterException e)
+    public static void Log(InterpreterException e, UnityEngine.Object context = null)
     {
-        Debug.LogError(Format(e));
+        Debug.LogError(Format(e), context);
     }
 }
 public static class Luau

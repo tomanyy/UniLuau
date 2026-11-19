@@ -1,6 +1,6 @@
 # UniLuau API Reference
 
-This page describes the Lua-facing APIs included with UniLuau. It is based on the package runtime and is intended as a reference for the supported surface, not a promise of full Roblox compatibility. Unity components and the MoonSharp standard library are dynamic, so their complete members are documented by Unity and MoonSharp rather than repeated here.
+This page describes the Lua-facing APIs included with UniLuau. It documents the supported Unity-backed scripting surface. Unity components and the MoonSharp standard library are dynamic, so their complete members are documented by Unity and MoonSharp rather than repeated here.
 
 - [Getting started](Getting-Started)
 - [Writing scripts and Luau syntax](Writing-Scripts)
@@ -8,7 +8,6 @@ This page describes the Lua-facing APIs included with UniLuau. It is based on th
 - [Input and UI](Input-and-UI)
 - [Audio, animation, and scenes](Audio-Animation-and-Scenes)
 - [Modules, inspector values, and errors](Modules-Values-and-Errors)
-- [Performance, debugging, and tests](Performance-and-Debugging)
 
 ## Runtime globals
 
@@ -26,7 +25,7 @@ Every Lua Behaviour runs in its own environment. The environment inherits shared
 | `Ray`, `RaycastParams`, `Random` | Ray, filtering, and random-number helpers. |
 | `NumberRange`, `NumberSequence`, `NumberSequenceKeypoint`, `ColorSequence`, `ColorSequenceKeypoint` | Range and keypoint sequence helpers. |
 | `GameObject.new(className, parent?)` | Creates supported Unity objects, UI objects, layouts, events, or prefabs. See [Creating objects](#creating-objects). |
-| `Enum` | String-valued input and action enum tables. This is a small compatibility table, not Unity's or Roblox's full enum catalog. |
+| `Enum` | String-valued input and action enum tables for the supported input and action values. |
 | `TweenInfo.new(...)`, `TweenService` | Tween configuration and service; `TweenService` is obtained from `game:GetService`. |
 
 UniLuau extends the standard Lua `math` table with `clamp`, `sign`, `round`, `lerp`, and `noise`; extends `table` with `find`, `clone` (shallow), `clear`, `create`, and `pack`; and adds `string.split`. `os.time` and `os.date` are provided using the local system clock.
@@ -51,7 +50,7 @@ Before execution, UniLuau preprocesses a practical subset of Luau syntax: compou
 | `PhysicsService` | Registers collision groups using Unity layers 8–31, configures group collision, assigns a group to an object hierarchy, and lists registered groups. Reserve those layers for this service. |
 | `Lighting` | Reads/writes ambient light, fog, directional-light brightness, and a simple clock time. These map to Unity render settings and a directional light. |
 | `SoundService` | Controls `AudioListener.volume` and plays a `Resources` audio clip at the main camera position (or world origin). |
-| `DataStoreService` | `GetDataStore(name)` returns a local JSON-file store. This is not Roblox cloud storage and its `*Async` method names do not mean network/asynchronous operations. |
+| `DataStoreService` | `GetDataStore(name)` returns a local JSON-file store. Its `*Async` method names do not mean network or asynchronous operations. |
 | `ReplicatedStorage`, `ServerStorage` | Both expose the same local `Resources/Prefabs` lookup table. They do not provide server/client separation or replication. |
 | `CoreGui`, `StarterGui` | Compatibility roots for UI `ScreenGui` objects. They are not Unity's actual internal CoreGui or a replication system. |
 
@@ -63,7 +62,7 @@ A scene exposes `Name`, `CurrentCamera`, `Gravity`, `ChildAdded`, and `ChildRemo
 
 ## Unity-oriented `Unity` and `unity` APIs
 
-Each behaviour gets both globals. `Unity` provides the scene/object and frame helpers without capability toggles; `unity` provides the narrower audio/animation/scene facade and obeys its Inspector toggles.
+Each behaviour gets both globals. `Unity` provides scene/object and frame helpers; `unity` provides the narrower audio/animation/scene facade.
 
 | Member | Behavior |
 | --- | --- |
@@ -76,7 +75,7 @@ Each behaviour gets both globals. `Unity` provides the scene/object and frame he
 | `Unity.Instantiate(gameObject)` | Clones a wrapped GameObject and tracks the clone for cleanup. |
 | `Unity.Log(message)`, `Unity.Warn(message)` | Log to the Console with the behaviour GameObject as context. |
 
-The lowercase `unity` facade provides `PlayAudio(resourcePath, loop?, volume?)`, `StopAudio()`, `SetAnimationTrigger(name)`, `SetAnimationFloat(name, value)`, `LoadScene(name)`, and `LoadSceneAsync(name)`. Audio, animation, and scene loading must be enabled on the Lua Behaviour Inspector. These toggles govern only this facade; they do not sandbox the broader object/component bindings.
+The lowercase `unity` facade provides `PlayAudio(resourcePath, loop?, volume?)`, `StopAudio()`, `SetAnimationTrigger(name)`, `SetAnimationFloat(name, value)`, `LoadScene(name)`, and `LoadSceneAsync(name)`.
 
 ## Unity objects and components
 
@@ -111,7 +110,7 @@ Signals use `Connect(callback)`, `Once(callback)`, and `Wait()`. Connections exp
 
 `UserInputService` exposes `InputBegan`, `InputEnded`, `TouchStarted`, `TouchEnded`, and `TouchMoved`; `IsKeyDown(key)`, `IsMouseButtonPressed(button)`, `GetMouse()`, `GetMouseDelta()`, `GetMouseWheel()`, `GetMouseLocation()`, `MouseBehavior`, `GamepadConnected`, `GetGamepadThumbstick(name)`, `GetGamepadTrigger(name)`, and `TouchEnabled`. The mouse wrapper exposes `X`, `Y`, `Target`, and `Hit`. Input payloads provide `KeyCode` and `UserInputType`. Device availability and input bindings are subject to Unity Input System setup.
 
-`ContextActionService` exposes `BindAction(name, callback, createTouchButton, ...inputs)`, `BindActionAtPriority(name, callback, createTouchButton, priority, ...inputs)`, `UnbindAction(name)`, `UnbindAllActions()`, `SetTitle(name, title)`, and `GetAllBoundActionInfo()`. Callbacks receive action name, input value, and `"Begin"`/`"End"`; bindings are owned by the script that created them and removed on teardown. It is a lightweight local adapter, not a full Roblox action service.
+`ContextActionService` exposes `BindAction(name, callback, createTouchButton, ...inputs)`, `BindActionAtPriority(name, callback, createTouchButton, priority, ...inputs)`, `UnbindAction(name)`, `UnbindAllActions()`, `SetTitle(name, title)`, and `GetAllBoundActionInfo()`. Callbacks receive action name, input value, and `"Begin"`/`"End"`; bindings are owned by the script that created them and removed on teardown. It is a local Unity input adapter.
 
 `task.spawn(callback, ...)`, `task.defer(callback, ...)`, and `task.delay(seconds, callback, ...)` return cancellable handles. `task.cancel(handle)` or `handle:Cancel()` cancels owned scheduled work; `handle.IsCancelled` reports the state. `task.wait(seconds)` and global `wait(seconds)` yield until a scheduler tick makes the delay due. Work does not preempt a callback that is already running.
 
@@ -121,7 +120,7 @@ Parent `ScreenGui` to `game:GetService("CoreGui")` or `StarterGui`, then parent 
 
 UI events include `MouseButton1Click`, `MouseEnter`, `MouseLeave`, `FocusGained`, `FocusLost`, `TextChanged`, `Changed`, and `GetPropertyChangedSignal(property)`. UI objects support `Parent`, `FindFirstChild`, `GetChildren`, `GetDescendants`, `ClearAllChildren`, and `Destroy`.
 
-`UIListLayout`, `UIGridLayout`, and `LayoutElement` expose layout properties including fill direction, child alignment, spacing, padding, child sizing/expansion, grid cell size/padding/corner/axis/constraints, and min/preferred/flexible dimensions. The custom UI layer implements a subset of uGUI behavior; it is not a complete Roblox GUI implementation. Images are loaded from resources by the package UI helper.
+`UIListLayout`, `UIGridLayout`, and `LayoutElement` expose layout properties including fill direction, child alignment, spacing, padding, child sizing/expansion, grid cell size/padding/corner/axis/constraints, and min/preferred/flexible dimensions. The custom UI layer maps supported properties to Unity uGUI. Images are loaded from resources by the package UI helper.
 
 ## Value types
 
@@ -154,13 +153,13 @@ end)
 tween:Play()
 ```
 
-Tween objects expose `PlaybackState`, `Completed`, and `Play()`, `Pause()`, `Cancel()`, `Reverse()`. The implementation interpolates numbers and values with a `Lerp` method, and applies goal values through wrapped object properties. It is a small runtime implementation; Unity's Animator/Animation systems and full Roblox tween semantics are not included.
+Tween objects expose `PlaybackState`, `Completed`, and `Play()`, `Pause()`, `Cancel()`, `Reverse()`. The implementation interpolates numbers and values with a `Lerp` method, and applies goal values through wrapped object properties. For Unity animation workflows, use the Animator and Animation systems.
 
 ## Local data, events, lighting, and materials
 
 `DataStoreService:GetDataStore(name)` provides `GetAsync(key)`, `SetAsync(key, value)`, `UpdateAsync(key, callback)`, `IncrementAsync(key, delta)`, `RemoveAsync(key)`, and `ListKeys()`. Data is JSON-encoded in `Application.persistentDataPath/LuaData`; use simple Lua values/tables that the package JSON converter supports. Files are local to the app installation/device and writes happen synchronously.
 
-`BindableEvent` has `Event`, `Fire(...)`, `Name`, `Parent`, and `Destroy()`. `BindableFunction` uses `OnInvoke`, `Invoke(...)`, `Name`, `Parent`, and `Destroy()`. `RemoteEvent` exposes `OnServerEvent`, `OnClientEvent`, `FireServer(...)`, `FireClient(...)`, `FireAllClients(...)`, `Name`, `Parent`, and `Destroy()`; all event directions are local signal dispatch in this single-process package, not networking.
+`BindableEvent` has `Event`, `Fire(...)`, `Name`, `Parent`, and `Destroy()`. `BindableFunction` uses `OnInvoke`, `Invoke(...)`, `Name`, `Parent`, and `Destroy()`. `RemoteEvent` exposes `OnServerEvent`, `OnClientEvent`, `FireServer(...)`, `FireClientTo(clientId, ...)`, `FireAllClients(...)`, `Name`, `Parent`, and `Destroy()`. These methods use NGO when `LuaNetcodeAdapter` is active and otherwise dispatch locally.
 
 `Lighting` maps `Ambient`, `FogEnabled`, `FogColor`, `FogStart`, `FogEnd`, `Brightness`, and `ClockTime` to Unity rendering settings and the selected directional light. `SoundService` maps `Volume` to Unity's global listener and loads sounds from `Resources` for `PlaySound(path[, volume])`.
 
@@ -168,17 +167,24 @@ Wrapped GameObjects expose `Material` and `Color` helpers. `Material` supports `
 
 ## Lua Behaviour Inspector and editor tools
 
-The Inspector supports script assignment, editable values (`Number`, `Boolean`, `String`, `Vector3`, `Color`, `Object`), audio/animation/scene-loading toggles, runtime status/error display, and editor hot reload. In Play mode its debugger offers line breakpoints, continue/step controls, locals, call stack, pause/resume/restart, scheduler metrics, and recent resume-time history. See [Performance, Debugging, and Tests](Performance-and-Debugging).
+The Inspector uses Unity's standard component workflow and supports editable attributes (`Number`, `Integer`, `Boolean`, `String`, `Vector2`, `Vector3`, `Color`, and `GameObject`). Add each attribute in the Inspector and choose its default value. Create starter scripts from **Assets > Create > Scripting**.
 
-Editor utilities also include dragging Lua assets onto GameObjects, creating a GameObject from a selected script, a `.lua` importer, source preview, syntax and literal-module checks, and a Lua value property drawer. Lua Language Server stubs are provided separately in `Documentation~/LuaLanguageServer`.
+The Editor provides a `.lua` importer, a Lua value property drawer, and starter scripts under **Assets > Create > Scripting**. Script errors appear in Unity's Console. Lua Language Server stubs are provided separately in `Documentation~/LuaLanguageServer`.
 
 ## Lifecycle and cleanup
 
 Scheduler jobs, delayed work, signal handlers, signal waiters, context actions, and tracked runtime-created GameObjects are tied to the owning Lua Behaviour. Disabling/destroying/restarting a behaviour or hot reloading its script cancels its owned work and runs tracked cleanup. `task.spawn` work may run immediately until it yields; a callback already executing cannot be interrupted by pause or teardown.
 
+Lifecycle callbacks are exposed as `script.Enabled`, `script.Disabled`, `script.ApplicationPaused`, `game.SceneLoaded`, `game.SceneUnloaded`, and `game.ApplicationPaused` signals.
+
+## Networking adapter
+
+`game.Network.IsConnected` reports whether a host adapter is installed. NGO support is an optional Package Manager sample, not a core dependency. After installing NGO and importing the **Netcode for GameObjects integration** sample, add its `LuaNetcodeAdapter` to a GameObject in the networked scene alongside an active `NetworkManager`. It registers a named message handler once NGO is listening. `RemoteEvent:FireServer(...)` sends to the server, `FireClientTo(clientId, ...)` sends from the server to one client, and `FireAllClients(...)` broadcasts from the server. `OnServerEvent` receives a `LuaNetworkPeer` first, with its `ClientId`, followed by the payload. `OnClientEvent` receives the payload.
+
+The service limits event names, arguments, payload size, and per-event rate, and rejects cyclic or unsupported values. NGO messages use reliable sequenced delivery. The host must still authenticate users and validate every request before changing authoritative game state. A custom host can implement `ILuaNetworkAdapter`; callbacks must be delivered on Unity's main thread. Without an adapter, `RemoteEvent` remains process-local.
+
 ## Compatibility and security limits
 
-- UniLuau runs MoonSharp Lua with a source preprocessor; it is not Luau VM or Roblox Studio.
-- Roblox-shaped services are small Unity-backed adapters. Features described as local-only above are not replicated, online, or cloud-backed.
-- The Inspector audio/animation/scene toggles restrict calls through the lowercase `unity` facade. The legacy `game`/`GameObject` component bridge can access Unity APIs more broadly, so these toggles are not a security boundary for untrusted scripts.
+- UniLuau runs MoonSharp Lua with a source preprocessor.
+- Services are Unity-backed local adapters. Features described as local-only above are not replicated, online, or cloud-backed.
 - Runtime APIs and dynamically discovered Unity component properties depend on Unity version and packages installed in the host project.

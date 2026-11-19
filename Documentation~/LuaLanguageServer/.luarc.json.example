@@ -1,0 +1,31 @@
+{
+  "runtime.version": "Lua 5.2",
+  "workspace.library": [".vscode/UniLuau"],
+  "diagnostics.globals": [
+    "game",
+    "workspace",
+    "script",
+    "Unity",
+    "unity",
+    "task",
+    "wait",
+    "warn",
+    "Vector2",
+    "Vector3",
+    "Color3",
+    "CFrame",
+    "UDim",
+    "UDim2",
+    "Rect",
+    "NumberRange",
+    "NumberSequence",
+    "NumberSequenceKeypoint",
+    "ColorSequence",
+    "ColorSequenceKeypoint",
+    "TweenInfo",
+    "RaycastParams",
+    "Enum",
+    "Instance",
+    "GameObject"
+  ]
+}

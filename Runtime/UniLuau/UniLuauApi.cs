@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
-using Stopwatch = System.Diagnostics.Stopwatch;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
@@ -54,12 +53,13 @@ public class Vec3
 [MoonSharpUserData]
 public class Color3
 {
-    public float R, G, B;
-    public Color3(float r, float g, float b) { R = r; G = g; B = b; }
-    [MoonSharpHidden] public Color ToUnity() { return new Color(R, G, B); }
+    public float R, G, B, A;
+    public Color3(float r, float g, float b) : this(r, g, b, 1f) { }
+    public Color3(float r, float g, float b, float a) { R = r; G = g; B = b; A = a; }
+    [MoonSharpHidden] public Color ToUnity() { return new Color(R, G, B, A); }
     public Color3 Lerp(Color3 o, float t)
     {
-        return new Color3(R + (o.R - R) * t, G + (o.G - G) * t, B + (o.B - B) * t);
+        return new Color3(R + (o.R - R) * t, G + (o.G - G) * t, B + (o.B - B) * t, A + (o.A - A) * t);
     }
     public string ToHex() { return "#" + ColorUtility.ToHtmlStringRGB(ToUnity()); }
     public DynValue ToHSV()
@@ -242,20 +242,168 @@ public sealed class SignalWaiter
     [MoonSharpHidden] public void Fire(object[] args) { callback(args); }
     [MoonSharpHidden] public void Cancel() { if (signal != null) signal.RemoveWaiter(this); }
 }
-public sealed class LuaScriptMetrics
+public interface ILuaNetworkAdapter
 {
-    public string Name { get; internal set; }
-    public int Resumes { get; internal set; }
-    public int ActiveTasks { get; internal set; }
-    public int Connections { get; internal set; }
-    public int PendingDelays { get; internal set; }
-    public int Errors { get; internal set; }
-    public string LastError { get; internal set; }
-    public double LastResumeMilliseconds { get; internal set; }
-    public double TotalResumeMilliseconds { get; internal set; }
-    public double MaxResumeMilliseconds { get; internal set; }
-    public bool Paused { get; internal set; }
+    event Action<ulong, string, object[]> ServerEventReceived;
+    event Action<string, object[]> ClientEventReceived;
+    void SendToServer(string eventName, object[] arguments);
+    void SendToClient(string eventName, ulong clientId, object[] arguments);
+    void SendToAllClients(string eventName, object[] arguments);
 }
+
+[MoonSharpUserData]
+public sealed class LuaNetworkPeer
+{
+    public ulong ClientId { get; private set; }
+    [MoonSharpHidden] public LuaNetworkPeer(ulong clientId) { ClientId = clientId; }
+}
+
+public sealed class LuaNetworkService
+{
+    readonly Dictionary<string, List<LuaRemoteEvent>> remotes = new Dictionary<string, List<LuaRemoteEvent>>();
+    readonly Dictionary<string, Queue<float>> eventTimes = new Dictionary<string, Queue<float>>();
+    ILuaNetworkAdapter adapter;
+    public bool IsConnected { get { return adapter != null; } }
+    [MoonSharpHidden] public int MaxEventsPerSecond = 30;
+    [MoonSharpHidden] public int MaxPayloadBytes = 65536;
+    [MoonSharpHidden]
+    public void Dispose() { SetAdapter(null); remotes.Clear(); }
+    [MoonSharpHidden] public bool HasAdapter(ILuaNetworkAdapter value) { return ReferenceEquals(adapter, value); }
+    [MoonSharpHidden]
+    public void SetAdapter(ILuaNetworkAdapter value)
+    {
+        if (adapter != null)
+        {
+            adapter.ServerEventReceived -= ReceiveServer;
+            adapter.ClientEventReceived -= ReceiveClient;
+        }
+        adapter = value;
+        if (adapter != null)
+        {
+            adapter.ServerEventReceived += ReceiveServer;
+            adapter.ClientEventReceived += ReceiveClient;
+        }
+    }
+    [MoonSharpHidden]
+    public void RemoveAdapter(ILuaNetworkAdapter expected)
+    {
+        if (ReferenceEquals(adapter, expected)) SetAdapter(null);
+    }
+    [MoonSharpHidden] public void Register(LuaRemoteEvent remote)
+    {
+        List<LuaRemoteEvent> list;
+        if (!remotes.TryGetValue(remote.Name, out list)) remotes[remote.Name] = list = new List<LuaRemoteEvent>();
+        if (!list.Contains(remote)) list.Add(remote);
+    }
+    [MoonSharpHidden] public void Unregister(LuaRemoteEvent remote)
+    {
+        foreach (var list in remotes.Values) list.Remove(remote);
+    }
+    [MoonSharpHidden] public void SendServer(string name, object[] args) { Validate(name, args, "out-server"); if (adapter != null) adapter.SendToServer(name, args); }
+    [MoonSharpHidden] public void SendClient(string name, ulong clientId, object[] args) { Validate(name, args, "out-client:" + clientId); if (adapter != null) adapter.SendToClient(name, clientId, args); }
+    [MoonSharpHidden] public void SendAllClients(string name, object[] args) { Validate(name, args, "out-all"); if (adapter != null) adapter.SendToAllClients(name, args); }
+    void ReceiveServer(ulong clientId, string name, object[] args) { if (ValidateIncoming(name, args, "in-server:" + clientId)) Fire(name, args, true, clientId); }
+    void ReceiveClient(string name, object[] args) { if (ValidateIncoming(name, args, "in-client")) Fire(name, args, false); }
+    bool ValidateIncoming(string name, object[] args, string direction)
+    {
+        if (string.IsNullOrWhiteSpace(name) || !remotes.ContainsKey(name)) return false;
+        try { Validate(name, args, direction); return true; }
+        catch (ScriptRuntimeException exception) { Debug.LogWarning("[Lua Network] Dropped event: " + exception.Message); return false; }
+    }
+    void Validate(string name, object[] args, string direction)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Length > 128)
+            throw new ScriptRuntimeException("Network event names must contain 1 to 128 characters.");
+        if (args != null && args.Length > 32)
+            throw new ScriptRuntimeException("Network events support at most 32 arguments.");
+        var visited = new HashSet<int>();
+        long bytes = 16;
+        if (args != null)
+            foreach (object argument in args) bytes += MeasureArgument(argument, visited, 0);
+        if (bytes > MaxPayloadBytes)
+            throw new ScriptRuntimeException("Network event payload exceeds the " + MaxPayloadBytes + " byte limit.");
+        float now = Time.unscaledTime;
+        string key = direction + ":" + name;
+        Queue<float> times;
+        if (!eventTimes.TryGetValue(key, out times)) eventTimes[key] = times = new Queue<float>();
+        while (times.Count > 0 && now - times.Peek() >= 1f) times.Dequeue();
+        if (times.Count >= MaxEventsPerSecond)
+            throw new ScriptRuntimeException("Network event rate limit exceeded for '" + name + "'.");
+        times.Enqueue(now);
+    }
+    static long MeasureArgument(object value, HashSet<int> visited, int depth)
+    {
+        if (depth > 8) throw new ScriptRuntimeException("Network payloads cannot be nested deeper than 8 levels.");
+        if (value == null) return 1;
+        if (value is DynValue)
+        {
+            DynValue dyn = (DynValue)value;
+            switch (dyn.Type)
+            {
+                case DataType.Nil: return 1;
+                case DataType.Boolean: return 2;
+                case DataType.Number: return 8;
+                case DataType.String: return 4 + System.Text.Encoding.UTF8.GetByteCount(dyn.String ?? string.Empty);
+                case DataType.Table:
+                    if (!visited.Add(dyn.ReferenceID)) throw new ScriptRuntimeException("Network payloads cannot contain cyclic tables.");
+                    long tableSize = 8;
+                    foreach (TablePair pair in dyn.Table.Pairs)
+                    {
+                        if (pair.Key.Type != DataType.String && pair.Key.Type != DataType.Number && pair.Key.Type != DataType.Boolean)
+                            throw new ScriptRuntimeException("Network table keys must be strings, numbers, or booleans.");
+                        tableSize += MeasureArgument(pair.Key, visited, depth + 1) + MeasureArgument(pair.Value, visited, depth + 1);
+                    }
+                    visited.Remove(dyn.ReferenceID);
+                    return tableSize;
+                case DataType.UserData: return MeasureArgument(dyn.UserData.Object, visited, depth + 1);
+                default: throw new ScriptRuntimeException("Network payload contains unsupported Lua type " + dyn.Type + ".");
+            }
+        }
+        if (value is string) return 4 + System.Text.Encoding.UTF8.GetByteCount((string)value);
+        if (value is bool) return 2;
+        if (value is byte[]) return 4 + ((byte[])value).Length;
+        if (value is byte || value is short || value is int || value is long || value is float || value is double) return 8;
+        if (value is Vector2) return 8;
+        if (value is Vector3) return 12;
+        if (value is Color) return 16;
+        if (value is Vec2) return 8;
+        if (value is Vec3) return 12;
+        if (value is Color3) return 16;
+        if (value is Table)
+        {
+            var table = (Table)value;
+            if (!visited.Add(table.ReferenceID)) throw new ScriptRuntimeException("Network payloads cannot contain cyclic tables.");
+            long tableSize = 8;
+            foreach (TablePair pair in table.Pairs)
+            {
+                if (pair.Key.Type != DataType.String && pair.Key.Type != DataType.Number && pair.Key.Type != DataType.Boolean)
+                    throw new ScriptRuntimeException("Network table keys must be strings, numbers, or booleans.");
+                tableSize += MeasureArgument(pair.Key, visited, depth + 1) + MeasureArgument(pair.Value, visited, depth + 1);
+            }
+            visited.Remove(table.ReferenceID);
+            return tableSize;
+        }
+        throw new ScriptRuntimeException("Network payload contains unsupported value type " + value.GetType().Name + ".");
+    }
+    void Fire(string name, object[] args, bool server, ulong clientId = 0)
+    {
+        List<LuaRemoteEvent> list;
+        if (!remotes.TryGetValue(name, out list)) return;
+        foreach (var remote in list.ToArray())
+            if (remote != null)
+            {
+                if (server)
+                {
+                    var received = new object[(args == null ? 0 : args.Length) + 1];
+                    received[0] = new LuaNetworkPeer(clientId);
+                    if (args != null) Array.Copy(args, 0, received, 1, args.Length);
+                    remote.OnServerEvent.Fire(received);
+                }
+                else remote.OnClientEvent.Fire(args ?? new object[0]);
+            }
+    }
+}
+
 public class Scheduler
 {
     class Job
@@ -274,34 +422,11 @@ public class Scheduler
     readonly List<Connection> allConnections = new List<Connection>();
     readonly HashSet<object> deadOwners = new HashSet<object>();
     readonly Dictionary<object, List<Action>> cleanups = new Dictionary<object, List<Action>>();
-    readonly Dictionary<object, LuaScriptMetrics> metrics = new Dictionary<object, LuaScriptMetrics>();
-    readonly HashSet<object> pausedOwners = new HashSet<object>();
-    readonly Dictionary<object, int> stepBudget = new Dictionary<object, int>();
     float now;
     public object CurrentOwner;
     public Scheduler(Script s) { script = s; }
     [MoonSharpHidden] public DynValue CreateWaitToken(Signal signal) { return DynValue.FromObject(script, new SignalWaitToken(signal)); }
     bool IsDead(object owner) { return owner != null && deadOwners.Contains(owner); }
-    LuaScriptMetrics EnsureMetrics(object owner)
-    {
-        if (owner == null) return null;
-        LuaScriptMetrics m;
-        if (!metrics.TryGetValue(owner, out m)) { m = new LuaScriptMetrics(); metrics.Add(owner, m); }
-        return m;
-    }
-    public LuaScriptMetrics GetOwnerMetrics(object owner)
-    {
-        var m = EnsureMetrics(owner);
-        if (m == null) return null;
-        m.ActiveTasks = jobs.FindAll(j => j.Owner == owner && (j.Handle == null || !j.Handle.Cancelled)).Count + waitingJobs.Count(j => j.Owner == owner && (j.Handle == null || !j.Handle.Cancelled));
-        m.Connections = allConnections.FindAll(c => c.Owner == owner && c.Connected).Count;
-        m.PendingDelays = jobs.FindAll(j => j.Owner == owner && j.DelayedFn != null).Count;
-        m.Paused = pausedOwners.Contains(owner);
-        return m;
-    }
-    public void PauseOwner(object owner) { if (owner != null) pausedOwners.Add(owner); }
-    public void ResumeOwner(object owner) { if (owner != null) { pausedOwners.Remove(owner); stepBudget.Remove(owner); } }
-    public void StepOwner(object owner) { if (owner != null) { pausedOwners.Add(owner); stepBudget[owner] = 1; } }
     void CancelHandle(TaskHandle handle)
     {
         jobs.RemoveAll(j => j.Handle == handle);
@@ -328,8 +453,6 @@ public class Scheduler
     {
         if (owner == null) return;
         deadOwners.Add(owner);
-        pausedOwners.Remove(owner);
-        stepBudget.Remove(owner);
         foreach (var j in waitingJobs.Where(j => j.Owner == owner).ToArray())
         {
             if (j.Handle != null) j.Handle.Cancel();
@@ -346,7 +469,7 @@ public class Scheduler
             cleanups.Remove(owner);
             foreach (var a in list) a();
         }
-        metrics.Remove(owner);
+        if (owner is LuaScriptRef && LuaWorld.Exists) LuaWorld.Instance.ClearModules(owner);
     }
     public TaskHandle Spawn(DynValue fn, params object[] args)
     {
@@ -363,11 +486,7 @@ public class Scheduler
             for (int i = 0; i < args.Length; i++) dynArgs[i] = DynValue.FromObject(script, args[i]);
             Resume(new Job { Co = script.CreateCoroutine(fn), Owner = owner, Handle = handle }, dynArgs);
         }
-        catch (InterpreterException e)
-        {
-            var m = EnsureMetrics(owner); if (m != null) { m.Errors++; m.LastError = LuaErrors.Format(e); }
-            LuaErrors.Log(e);
-        }
+        catch (InterpreterException e) { LuaErrors.Log(e); }
         return handle;
     }
     public TaskHandle Delay(float seconds, DynValue fn, params object[] args)
@@ -385,20 +504,13 @@ public class Scheduler
     {
         if (job.Handle != null && job.Handle.Cancelled) return;
         if (IsDead(job.Owner)) return;
-        if (job.Owner != null && pausedOwners.Contains(job.Owner))
-        {
-            int budget;
-            if (!stepBudget.TryGetValue(job.Owner, out budget) || budget <= 0) { if (job.Co != null) jobs.Add(job); return; }
-            stepBudget[job.Owner] = budget - 1;
-        }
         object previous = CurrentOwner;
         CurrentOwner = job.Owner;
-        var timer = Stopwatch.StartNew();
         try
         {
             DynValue result = job.Co.Coroutine.Resume(args);
             if (job.Handle != null && job.Handle.Cancelled) return;
-            if (job.Co.Coroutine.State == CoroutineState.Suspended)
+            if (job.Co.Coroutine.State == CoroutineState.Suspended || job.Co.Coroutine.State == CoroutineState.ForceSuspended)
             {
                 if (result.Type == DataType.Tuple && result.Tuple.Length > 0) result = result.Tuple[0];
                 SignalWaitToken token = null;
@@ -424,16 +536,9 @@ public class Scheduler
                 }
             }
         }
-        catch (InterpreterException e)
-        {
-            var m = EnsureMetrics(job.Owner); if (m != null) { m.Errors++; m.LastError = LuaErrors.Format(e); }
-            LuaErrors.Log(e);
-        }
+        catch (InterpreterException e) { LuaErrors.Log(e); }
         finally
         {
-            timer.Stop();
-            var m = EnsureMetrics(job.Owner);
-            if (m != null) { m.Resumes++; m.LastResumeMilliseconds = timer.Elapsed.TotalMilliseconds; m.TotalResumeMilliseconds += m.LastResumeMilliseconds; m.MaxResumeMilliseconds = Math.Max(m.MaxResumeMilliseconds, m.LastResumeMilliseconds); }
             CurrentOwner = previous;
         }
     }
@@ -446,11 +551,6 @@ public class Scheduler
             jobs.Remove(j);
             if (j.Handle != null && j.Handle.Cancelled) continue;
             if (IsDead(j.Owner)) continue;
-            if (j.Owner != null && pausedOwners.Contains(j.Owner) && j.Callback == null)
-            {
-                int budget;
-                if (!stepBudget.TryGetValue(j.Owner, out budget) || budget <= 0) { jobs.Add(j); continue; }
-            }
             if (j.Callback != null) j.Callback();
             else if (j.Co == null) SpawnOwned(j.Owner, j.DelayedFn, j.Args ?? new object[0]);
             else Resume(j, new DynValue[0]);
@@ -1611,18 +1711,24 @@ public class LuaUserInputService
 [MoonSharpUserData]
 public class LuaScriptRef
 {
-    public LuaInstance Parent;
     public string Name;
     public Signal AttributeChanged;
+    public Signal Enabled, Disabled, Destroying, ApplicationPaused;
     readonly Dictionary<string, object> attributes = new Dictionary<string, object>();
     readonly Dictionary<string, Signal> changedSignals = new Dictionary<string, Signal>();
     [MoonSharpHidden]
     public LuaScriptRef(LuaInstance parent, string name)
     {
-        Parent = parent;
+        this.parent = parent;
         Name = name;
         AttributeChanged = new Signal(LuaWorld.Instance.Scheduler);
+        Enabled = new Signal(LuaWorld.Instance.Scheduler);
+        Disabled = new Signal(LuaWorld.Instance.Scheduler);
+        Destroying = new Signal(LuaWorld.Instance.Scheduler);
+        ApplicationPaused = new Signal(LuaWorld.Instance.Scheduler);
     }
+    LuaInstance parent;
+    public LuaInstance Parent { get { return parent; } }
     public object GetAttribute(string name)
     {
         object v;
@@ -1757,10 +1863,15 @@ public class LuaGame
     readonly LuaCollectionService collection = new LuaCollectionService();
     readonly LuaHttpService http = new LuaHttpService();
     readonly Dictionary<string, DynValue> luaServices = new Dictionary<string, DynValue>();
+    public Signal SceneLoaded { get; private set; }
+    public Signal SceneUnloaded { get; private set; }
+    public Signal ApplicationPaused { get; private set; }
+    public LuaNetworkService Network { get; private set; }
     const string WorkspaceMessage =
         "Workspace does not exist in Unity. Use game.<SceneName> (for example game.SampleScene) instead.";
     [MoonSharpHidden]
-    public LuaGame(LuaRunService r, LuaUserInputService u) { run = r; uis = u; }
+    public LuaGame(LuaRunService r, LuaUserInputService u, Signal sceneLoaded, Signal sceneUnloaded, Signal applicationPaused, LuaNetworkService network)
+    { run = r; uis = u; SceneLoaded = sceneLoaded; SceneUnloaded = sceneUnloaded; ApplicationPaused = applicationPaused; Network = network; }
     [MoonSharpHidden]
     public LuaScene FindScene(string name)
     {
@@ -1811,6 +1922,7 @@ public class LuaWorld
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void Reset()
     {
+        if (inst != null) inst.Dispose();
         inst = null;
         LuaScene.ClearCache();
         LuaUnityTypes.ClearCache();
@@ -1818,15 +1930,70 @@ public class LuaWorld
     }
     public Script Lua;
     public Scheduler Scheduler;
+    public Signal SceneLoaded, SceneUnloaded, ApplicationPaused;
+    public LuaNetworkService Network;
     public LuaPhysicsService PhysicsService;
     public LuaContextActionService ContextActionService;
     public LuaRunService RunService;
     Signal heartbeat, renderStepped, stepped;
     Signal fixedUpdate, lateUpdate;
     Signal inputBegan, inputEnded, touchStarted, touchEnded, touchMoved;
-    readonly Dictionary<string, DynValue> moduleCache = new Dictionary<string, DynValue>();
-    readonly HashSet<string> loading = new HashSet<string>();
-    public void ClearModules() { moduleCache.Clear(); }
+    readonly Dictionary<object, Dictionary<string, DynValue>> moduleCaches = new Dictionary<object, Dictionary<string, DynValue>>();
+    readonly Dictionary<object, HashSet<string>> loadingModules = new Dictionary<object, HashSet<string>>();
+    readonly Dictionary<object, Dictionary<string, HashSet<string>>> moduleDependencies = new Dictionary<object, Dictionary<string, HashSet<string>>>();
+    readonly Dictionary<object, List<string>> moduleStacks = new Dictionary<object, List<string>>();
+    readonly List<Action> endOfTickActions = new List<Action>();
+    void HandleSceneLoaded(Scene scene, LoadSceneMode mode) { SceneLoaded.Fire(LuaScene.Get(scene.name), mode.ToString()); }
+    void HandleSceneUnloaded(Scene scene) { SceneUnloaded.Fire(scene.name); }
+    public void Dispose()
+    {
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+        SceneManager.sceneUnloaded -= HandleSceneUnloaded;
+        if (Network != null) Network.Dispose();
+    }
+    public void ScheduleEndOfTick(Action action) { if (action != null) endOfTickActions.Add(action); }
+    public void ClearModules() { moduleCaches.Clear(); loadingModules.Clear(); moduleDependencies.Clear(); moduleStacks.Clear(); }
+    public void ClearModules(object owner)
+    {
+        if (owner == null) return;
+        moduleCaches.Remove(owner);
+        loadingModules.Remove(owner);
+        moduleDependencies.Remove(owner);
+        moduleStacks.Remove(owner);
+    }
+    public Dictionary<string, string[]> GetModuleDependencies(object owner)
+    {
+        var result = new Dictionary<string, string[]>();
+        Dictionary<string, HashSet<string>> graph;
+        if (owner != null && moduleDependencies.TryGetValue(owner, out graph))
+            foreach (var item in graph) result[item.Key] = item.Value.OrderBy(value => value).ToArray();
+        return result;
+    }
+    public string[] ReloadModule(object owner, string name)
+    {
+        if (owner == null) return new string[0];
+        var invalidated = new HashSet<string> { name };
+        Dictionary<string, HashSet<string>> graph;
+        if (moduleDependencies.TryGetValue(owner, out graph))
+            invalidated = new HashSet<string>(GetDependentModules(graph, name));
+        Dictionary<string, DynValue> cache;
+        if (moduleCaches.TryGetValue(owner, out cache))
+            foreach (string module in invalidated) cache.Remove(module);
+        return invalidated.OrderBy(value => value).ToArray();
+    }
+    public static string[] GetDependentModules(Dictionary<string, HashSet<string>> graph, string module)
+    {
+        var affected = new HashSet<string> { module };
+        if (graph == null) return affected.ToArray();
+        bool changed;
+        do
+        {
+            changed = false;
+            foreach (var edge in graph)
+                if (!affected.Contains(edge.Key) && edge.Value.Any(affected.Contains)) changed |= affected.Add(edge.Key);
+        } while (changed);
+        return affected.OrderBy(value => value).ToArray();
+    }
     static float N(CallbackArguments a, int i) { return a.Count > i ? (float)(a[i].CastToNumber() ?? 0) : 0f; }
     static bool SameLuaValue(DynValue a, DynValue b)
     {
@@ -1876,10 +2043,16 @@ public class LuaWorld
         touchStarted  = new Signal(Scheduler);
         touchEnded    = new Signal(Scheduler);
         touchMoved    = new Signal(Scheduler);
+        SceneLoaded = new Signal(Scheduler);
+        SceneUnloaded = new Signal(Scheduler);
+        ApplicationPaused = new Signal(Scheduler);
+        SceneManager.sceneLoaded += HandleSceneLoaded;
+        SceneManager.sceneUnloaded += HandleSceneUnloaded;
         var run  = new LuaRunService(stepped, renderStepped, heartbeat, fixedUpdate, lateUpdate);
         RunService = run;
         var uis  = new LuaUserInputService(inputBegan, inputEnded, touchStarted, touchEnded, touchMoved);
-        var game = new LuaGame(run, uis);
+        Network = new LuaNetworkService();
+        var game = new LuaGame(run, uis, SceneLoaded, SceneUnloaded, ApplicationPaused, Network);
         PhysicsService = new LuaPhysicsService();
         ContextActionService = new LuaContextActionService(Scheduler, inputBegan, inputEnded);
         var g = Lua.Globals;
@@ -2065,20 +2238,52 @@ public class LuaWorld
         g["require"] = DynValue.NewCallback((ctx, a) =>
         {
             string modName = a[0].CastToString();
+            object owner = Scheduler.CurrentOwner ?? (object)this;
+            string parentModule = null;
+            List<string> stack;
+            if (moduleStacks.TryGetValue(owner, out stack) && stack.Count > 0) parentModule = stack[stack.Count - 1];
+            Dictionary<string, HashSet<string>> graph;
+            if (!moduleDependencies.TryGetValue(owner, out graph)) moduleDependencies[owner] = graph = new Dictionary<string, HashSet<string>>();
+            if (!graph.ContainsKey(modName)) graph[modName] = new HashSet<string>();
+            if (parentModule != null)
+            {
+                if (!graph.ContainsKey(parentModule)) graph[parentModule] = new HashSet<string>();
+                graph[parentModule].Add(modName);
+            }
+            Dictionary<string, DynValue> moduleCache;
+            if (!moduleCaches.TryGetValue(owner, out moduleCache))
+            {
+                moduleCache = new Dictionary<string, DynValue>();
+                moduleCaches.Add(owner, moduleCache);
+            }
+            HashSet<string> loading;
+            if (!loadingModules.TryGetValue(owner, out loading))
+            {
+                loading = new HashSet<string>();
+                loadingModules.Add(owner, loading);
+            }
             DynValue cached;
             if (moduleCache.TryGetValue(modName, out cached)) return cached;
             if (loading.Contains(modName))
-                throw new ScriptRuntimeException("Circular require: " + modName);
+            {
+                string chain = moduleStacks.ContainsKey(owner) ? string.Join(" -> ", moduleStacks[owner].Concat(new[] { modName })) : modName;
+                throw new ScriptRuntimeException("Circular require: " + chain);
+            }
             var asset = Resources.Load<TextAsset>("Lua/" + modName);
             if (asset == null)
                 throw new ScriptRuntimeException("Module not found: Assets/Resources/Lua/" + modName + ".lua");
             string source = Luau.Transpile(asset.text);
             LuaErrors.Sources[modName] = source;
+#if UNITY_EDITOR
+            LuaErrors.AssetPaths[modName] = UnityEditor.AssetDatabase.GetAssetPath(asset);
+#endif
             var env = new Table(Lua);
             var meta = new Table(Lua);
             meta["__index"] = Lua.Globals;
             env.MetaTable = meta;
             loading.Add(modName);
+            if (!moduleStacks.TryGetValue(owner, out stack)) moduleStacks[owner] = stack = new List<string>();
+            stack.Add(modName);
             try
             {
                 DynValue result = ctx.Call(Lua.LoadString(source, env, modName));
@@ -2087,7 +2292,7 @@ public class LuaWorld
                 moduleCache[modName] = result;
                 return result;
             }
-            finally { loading.Remove(modName); }
+            finally { loading.Remove(modName); stack.RemoveAt(stack.Count - 1); }
         });
     }
     static string FormatLuaDate(string format, DateTime value)
@@ -2487,6 +2692,12 @@ public class LuaWorld
         stepped.Fire(dt);
         renderStepped.Fire(dt);
         heartbeat.Fire(dt);
+        if (endOfTickActions.Count > 0)
+        {
+            var actions = endOfTickActions.ToArray();
+            endOfTickActions.Clear();
+            foreach (var action in actions) action();
+        }
     }
     public void FixedTick(float dt) { fixedUpdate.Fire(dt); }
     public void LateTick(float dt) { lateUpdate.Fire(dt); }

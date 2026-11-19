@@ -17,6 +17,22 @@ public static class LuaIndexing
             typeof(LuaGame), (o, name) => ((LuaGame)o).FindScene(name)));
         UserData.RegisterType(typeof(LuaGuiObject), new ChildIndexDescriptor(
             typeof(LuaGuiObject), (o, name) => ((LuaGuiObject)o).FindFirstChild(name)));
+        UserData.RegisterType(typeof(LuaScriptRef), new ChildIndexDescriptor(typeof(LuaScriptRef), null));
+        UserData.RegisterType(typeof(LuaUserInputService), new ChildIndexDescriptor(typeof(LuaUserInputService), null));
+        UserData.RegisterType(typeof(LuaContextActionService), new ChildIndexDescriptor(typeof(LuaContextActionService), null));
+        UserData.RegisterType(typeof(LuaPhysicsService), new ChildIndexDescriptor(typeof(LuaPhysicsService), null));
+        UserData.RegisterType(typeof(LuaLighting), new ChildIndexDescriptor(typeof(LuaLighting), null));
+        UserData.RegisterType(typeof(LuaSoundService), new ChildIndexDescriptor(typeof(LuaSoundService), null));
+        UserData.RegisterType(typeof(LuaDataStoreService), new ChildIndexDescriptor(typeof(LuaDataStoreService), null));
+        UserData.RegisterType(typeof(LuaDataStore), new ChildIndexDescriptor(typeof(LuaDataStore), null));
+        UserData.RegisterType(typeof(LuaBindableEvent), new ChildIndexDescriptor(typeof(LuaBindableEvent), null));
+        UserData.RegisterType(typeof(LuaBindableFunction), new ChildIndexDescriptor(typeof(LuaBindableFunction), null));
+        UserData.RegisterType(typeof(LuaRemoteEvent), new ChildIndexDescriptor(typeof(LuaRemoteEvent), null));
+        UserData.RegisterType(typeof(LuaNetworkPeer));
+        UserData.RegisterType(typeof(LuaPrefab), new ChildIndexDescriptor(typeof(LuaPrefab), null));
+        UserData.RegisterType(typeof(LuaRaycastParams), new ChildIndexDescriptor(typeof(LuaRaycastParams), null));
+        UserData.RegisterType(typeof(LuaCollectionService), new ChildIndexDescriptor(typeof(LuaCollectionService), null));
+        UserData.RegisterType(typeof(LuaDebris), new ChildIndexDescriptor(typeof(LuaDebris), null));
     }
 }
 public class ChildIndexDescriptor : StandardUserDataDescriptor

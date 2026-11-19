@@ -1,0 +1,6 @@
+local input = game:GetService("UserInputService")
+
+input.InputBegan:Connect(function(key, processed)
+	if processed then return end
+	print("Input pressed: " .. tostring(key.KeyCode))
+end)

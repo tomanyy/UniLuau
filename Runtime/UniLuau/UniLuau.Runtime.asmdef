@@ -1,7 +1,7 @@
 {
   "name": "UniLuau.Runtime",
   "rootNamespace": "",
-  "references": ["Unity.InputSystem", "UnityEngine.UI"],
+  "references": ["MoonSharp", "Unity.InputSystem", "UnityEngine.UI"],
   "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,

@@ -20,7 +20,7 @@ UniLuau declares its Input System and Unity UI dependencies in `package.json`. L
 4. Assign the script asset to the component's **Script** field.
 5. Enter Play mode and check the Unity Console for output or errors.
 
-You can also drag a Lua asset onto a GameObject in the Hierarchy. To create a GameObject and attach the script in one step, select the script asset and choose **Assets > Add Lua Script to New GameObject**.
+Create a `.lua` or `.luau` asset in the Project window, add **Lua Behaviour** to a GameObject, then assign the script in the Inspector.
 
 ## First script
 

@@ -1,0 +1,11 @@
+script.Enabled:Connect(function()
+	print(script.Name .. " enabled")
+end)
+
+script.Disabled:Connect(function()
+	print(script.Name .. " disabled")
+end)
+
+game.SceneLoaded:Connect(function(scene, mode)
+	print("Loaded " .. scene.Name .. " using " .. mode)
+end)

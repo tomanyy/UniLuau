@@ -1,27 +1,23 @@
 using UnityEngine;
 using MoonSharp.Interpreter;
+using UnityEngine.Serialization;
+using UnityEngine.Serialization;
 [AddComponentMenu("Lua/Lua Behaviour")]
 public class LuaBehaviour : MonoBehaviour
 {
     public TextAsset script;
-    [Tooltip("Values you can edit here and read from Lua with script:GetAttribute(\"Name\")")]
-    public LuaValue[] values;
+    [Tooltip("Add Lua attributes here with their names, types, and default values. Read them in Lua with script:GetAttribute(\"Name\").")]
+    [FormerlySerializedAs("values")]
+    public LuaValue[] attributes;
     [Tooltip("Editor only: restart this script automatically when its .lua file is saved during Play mode")]
     public bool hotReload = true;
-    [Header("Unity API Capabilities")]
-    [Tooltip("Allow unity.PlayAudio and unity.StopAudio on this GameObject.")]
-    public bool allowAudio = true;
-    [Tooltip("Allow unity.SetAnimationTrigger and unity.SetAnimationFloat on this GameObject.")]
-    public bool allowAnimation = true;
-    [Tooltip("Allow unity.LoadScene and unity.LoadSceneAsync.")]
-    public bool allowSceneLoading;
     LuaScriptRef scriptRef;
     string loadedSource;
     bool hasStarted;
+    LuaScriptRef pendingDisableOwner;
     public string RuntimeStatus { get; private set; } = "Not started";
     public string LastError { get; private set; }
-    public LuaScriptMetrics Metrics { get { return scriptRef != null && LuaWorld.Exists ? LuaWorld.Instance.Scheduler.GetOwnerMetrics(scriptRef) : null; } }
-    public bool IsPaused { get { var m = Metrics; return m != null && m.Paused; } }
+    public object RuntimeOwner { get { return scriptRef; } }
 #if UNITY_EDITOR
     string[] snapshots;
     float nextCheck;
@@ -33,7 +29,12 @@ public class LuaBehaviour : MonoBehaviour
     }
     void OnEnable()
     {
-        if (hasStarted && Application.isPlaying) Run();
+        if (hasStarted && Application.isPlaying)
+        {
+            if (pendingDisableOwner != null && LuaWorld.Exists) LuaWorld.Instance.Scheduler.KillOwner(pendingDisableOwner);
+            pendingDisableOwner = null;
+            Run();
+        }
     }
     void Run()
     {
@@ -49,15 +50,14 @@ public class LuaBehaviour : MonoBehaviour
         var world = LuaWorld.Instance;
         var lua = world.Lua;
         scriptRef = new LuaScriptRef(LuaInstance.Wrap(gameObject), script.name);
-        var metrics = world.Scheduler.GetOwnerMetrics(scriptRef);
-        metrics.Name = script.name;
-        if (values != null)
+        if (attributes != null)
         {
-            foreach (var v in values)
+            foreach (var v in attributes)
                 if (v != null && !string.IsNullOrEmpty(v.name))
                     scriptRef.Load(v.name, v.ToLua());
         }
         loadedSource = script.text;
+        LuaErrors.AssetPaths[script.name] = GetScriptAssetPath();
         string source = Luau.Transpile(loadedSource);
         LuaErrors.Sources[script.name] = source;
         var env = new Table(lua);
@@ -65,7 +65,7 @@ public class LuaBehaviour : MonoBehaviour
         meta["__index"] = lua.Globals;
         env.MetaTable = meta;
         env["script"] = scriptRef;
-        var unityApi = new LuaUnityApi(gameObject, world.RunService, allowAudio, allowAnimation, allowSceneLoading);
+        var unityApi = new LuaUnityApi(gameObject, world.RunService);
         env["unity"] = unityApi;
         env["Unity"] = unityApi;
         try
@@ -78,14 +78,13 @@ public class LuaBehaviour : MonoBehaviour
         {
             RuntimeStatus = "Error";
             LastError = LuaErrors.Format(e);
-            metrics.Errors++;
-            metrics.LastError = LastError;
-            LuaErrors.Log(e);                 
+            LuaErrors.Log(e, this);
         }
+        if (scriptRef != null) scriptRef.Enabled.Fire();
 #if UNITY_EDITOR
-        snapshots = new string[values != null ? values.Length : 0];
+        snapshots = new string[attributes != null ? attributes.Length : 0];
         for (int i = 0; i < snapshots.Length; i++)
-            if (values[i] != null) snapshots[i] = JsonUtility.ToJson(values[i]);
+            if (attributes[i] != null) snapshots[i] = JsonUtility.ToJson(attributes[i]);
 #endif
     }
     void Reload()
@@ -97,9 +96,14 @@ public class LuaBehaviour : MonoBehaviour
         if (script != null) Debug.Log("[Lua] Reloaded " + script.name);
         Run();
     }
-    public void PauseScript() { if (scriptRef != null && LuaWorld.Exists) LuaWorld.Instance.Scheduler.PauseOwner(scriptRef); }
-    public void ResumeScript() { if (scriptRef != null && LuaWorld.Exists) LuaWorld.Instance.Scheduler.ResumeOwner(scriptRef); }
-    public void StepScript() { if (scriptRef != null && LuaWorld.Exists) LuaWorld.Instance.Scheduler.StepOwner(scriptRef); }
+    string GetScriptAssetPath()
+    {
+#if UNITY_EDITOR
+        return UnityEditor.AssetDatabase.GetAssetPath(script);
+#else
+        return script != null ? script.name : string.Empty;
+#endif
+    }
     public void RestartScript()
     {
         if (scriptRef != null && LuaWorld.Exists) LuaWorld.Instance.Scheduler.KillOwner(scriptRef);
@@ -109,17 +113,34 @@ public class LuaBehaviour : MonoBehaviour
     }
     void OnDestroy()
     {
+        if (scriptRef != null) scriptRef.Destroying.Fire();
         StopScript();
     }
     void OnDisable()
     {
-        if (Application.isPlaying) StopScript();
+        if (!Application.isPlaying) return;
+        if (scriptRef != null) scriptRef.Disabled.Fire();
+        pendingDisableOwner = scriptRef;
+        if (pendingDisableOwner != null && LuaWorld.Exists)
+        {
+            var owner = pendingDisableOwner;
+            LuaWorld.Instance.ScheduleEndOfTick(() =>
+            {
+                if (scriptRef == owner && (!enabled || !gameObject.activeInHierarchy)) StopScript();
+                if (pendingDisableOwner == owner) pendingDisableOwner = null;
+            });
+        }
+    }
+    void OnApplicationPause(bool paused)
+    {
+        if (scriptRef != null) scriptRef.ApplicationPaused.Fire(paused);
     }
     void StopScript()
     {
         if (scriptRef != null && LuaWorld.Exists)
             LuaWorld.Instance.Scheduler.KillOwner(scriptRef);
         scriptRef = null;
+        pendingDisableOwner = null;
         if (RuntimeStatus == "Running" || RuntimeStatus == "Starting") RuntimeStatus = "Disabled";
     }
 #if UNITY_EDITOR
@@ -135,11 +156,11 @@ public class LuaBehaviour : MonoBehaviour
                 return;
             }
         }
-        if (scriptRef == null || values == null || snapshots == null) return;
-        if (snapshots.Length != values.Length) System.Array.Resize(ref snapshots, values.Length);
-        for (int i = 0; i < values.Length; i++)
+        if (scriptRef == null || attributes == null || snapshots == null) return;
+        if (snapshots.Length != attributes.Length) System.Array.Resize(ref snapshots, attributes.Length);
+        for (int i = 0; i < attributes.Length; i++)
         {
-            var v = values[i];
+            var v = attributes[i];
             if (v == null || string.IsNullOrEmpty(v.name)) continue;
             string snap = JsonUtility.ToJson(v);
             if (snap == snapshots[i]) continue;

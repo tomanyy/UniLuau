@@ -91,6 +91,10 @@ namespace MoonSharp.Interpreter.Platforms
 	#if ENABLE_IL2CPP
 					IsUnityIL2CPP = true;
 	#endif
+	#elif UNITY_6000_0_OR_NEWER
+			IsRunningOnUnity = UnityEngine.Assemblies.CurrentAssemblies
+				.GetLoadedAssemblies()
+				.Any(a => a.GetName().Name.StartsWith("UnityEngine", StringComparison.Ordinal));
 	#elif !(NETFX_CORE)
 			IsRunningOnUnity = AppDomain.CurrentDomain
 				.GetAssemblies()

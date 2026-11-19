@@ -14,7 +14,7 @@ The package's scheduler lifecycle tests are in `Tests/Editor`. From the reposito
 unity test Tests/UnityProject --mode EditMode
 ```
 
-GitHub Actions runs the same EditMode suite from `Tests/UnityProject`. Configure a repository secret named `UNITY_LICENSE` for GameCI. `UNITY_EMAIL` and `UNITY_PASSWORD` are optional account-license variables. See [Performance, Debugging, and Tests](Performance-and-Debugging) for the suite coverage and local Editor requirement.
+GitHub Actions runs the EditMode suite from `Tests/UnityProject`. Configure a repository secret named `UNITY_LICENSE` for GameCI. `UNITY_EMAIL` and `UNITY_PASSWORD` are optional account-license variables.
 
 ## Troubleshooting
 
@@ -33,3 +33,5 @@ GitHub Actions runs the same EditMode suite from `Tests/UnityProject`. Configure
 **GitHub rejects a push that adds `.github/workflows/`.** The classic Personal Access Token used for HTTPS needs both `repo` and `workflow` scopes. SSH authentication is another option if an SSH key is registered with GitHub.
 
 **The editor reports a GUID conflict after installing the package.** The package and project contain duplicate copies of the same assets. Remove the old copies from `Assets/Editor` and `Assets/Plugins/MoonSharp`, plus old UniLuau scripts under `Assets/Scripts`, then let Unity reimport. Keep a backup or commit before deleting project assets.
+
+**A script value field looks generic.** Check that Unity has compiled `LuaValueDrawer.cs`. If you copied UniLuau into `Assets` and also installed the package, remove the duplicate source copy so Unity sees only one `LuaValue` type.

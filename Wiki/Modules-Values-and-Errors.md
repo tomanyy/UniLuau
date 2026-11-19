@@ -17,7 +17,7 @@ Modules are cached while running. Hot reload clears the module cache and reloads
 
 ## Inspector values
 
-Use the Lua Behaviour **Values** list to expose editable values to the script. Give each value a name, then read or watch it as an attribute:
+Use the Lua Behaviour **Attributes** list to expose editable defaults to the script. Add an entry with **+**, give it a name, select its type, and set its default value. Then read or watch it as an attribute:
 
 ```lua
 local speed = script:GetAttribute("Speed")
@@ -28,4 +28,4 @@ end)
 
 ## Errors and validation
 
-The inspector checks script syntax and reports missing literal `require` paths. At runtime, errors appear in the Unity Console and on the Lua Behaviour inspector with the script name, source excerpt, and stack frames where available. The Inspector's **Lua Debugger** section also counts runtime errors. The **Status** field shows whether the behaviour is ready, running, disabled, or has an error. See [Performance, Debugging, and Tests](Performance-and-Debugging) for the runtime controls and metrics.
+Runtime errors are reported in the Unity Console with the script name and source location when available.
